@@ -1,0 +1,2170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Project Board</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #20242b;
+      --grid-minor: rgba(226, 232, 240, 0.08);
+      --grid-major: rgba(226, 232, 240, 0.14);
+      --ink: #e7ebf0;
+      --muted: #a8b0bc;
+      --panel: rgba(35, 40, 49, 0.92);
+      --panel-solid: #262c35;
+      --line: rgba(226, 232, 240, 0.14);
+      --shadow: 0 18px 50px rgba(4, 8, 14, 0.34);
+      --accent: #2563eb;
+      --group: rgba(255, 255, 255, 0.32);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      position: fixed;
+      inset: 0;
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(var(--grid-minor) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px),
+        linear-gradient(var(--grid-major) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-major) 1px, transparent 1px);
+      background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .toolbar {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      max-width: calc(100vw - 32px);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .toolbar button,
+    .zoom-pill {
+      min-width: 38px;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 7px;
+      background: #303743;
+      color: var(--ink);
+      border: 1px solid rgba(226, 232, 240, 0.12);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset;
+    }
+
+    .toolbar button:hover {
+      background: #3a4350;
+    }
+
+    .toolbar button:active {
+      transform: translateY(1px);
+    }
+
+    .toolbar .primary {
+      padding: 0 12px;
+      background: #dce6f3;
+      color: #111827;
+      border-color: #dce6f3;
+    }
+
+    .toolbar .primary:hover {
+      background: #ffffff;
+    }
+
+    .mode-button.active {
+      background: #dce6f3;
+      color: #111827;
+      border-color: #dce6f3;
+    }
+
+    .tool-hidden {
+      display: none !important;
+    }
+
+    .divider {
+      width: 1px;
+      height: 30px;
+      background: rgba(226, 232, 240, 0.14);
+    }
+
+    .palette {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .swatch {
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      border-radius: 50%;
+      border: 2px solid rgba(15, 23, 42, 0.45);
+      box-shadow: 0 0 0 2px rgba(226,232,240,0.28);
+    }
+
+    .swatch.active {
+      outline: 3px solid #f8fafc;
+      outline-offset: 2px;
+    }
+
+    .zoom-pill {
+      width: 64px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .hint {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 20;
+      max-width: min(380px, calc(100vw - 32px));
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(35, 40, 49, 0.86);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .viewport {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .viewport.dragging {
+      cursor: grabbing;
+    }
+
+    .world {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1px;
+      height: 1px;
+      transform-origin: 0 0;
+    }
+
+    .flow-edges {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1px;
+      height: 1px;
+      overflow: visible;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .flow-edge {
+      stroke: rgba(226, 232, 240, 0.72);
+      stroke-width: 3;
+      fill: none;
+      marker-end: url(#arrowHead);
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+
+    .flow-edge:hover {
+      stroke-width: 5;
+      filter: drop-shadow(0 0 7px rgba(226, 232, 240, 0.42));
+    }
+
+    .flow-edge.selected {
+      stroke-width: 5;
+      filter: drop-shadow(0 0 7px rgba(147, 197, 253, 0.72));
+    }
+
+    .flow-edge.dotted {
+      stroke-dasharray: 9 8;
+    }
+
+    .flow-edge.preview {
+      stroke: #93c5fd;
+      stroke-dasharray: 8 7;
+      marker-end: none;
+      pointer-events: none;
+    }
+
+    .line-tools {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .line-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(15, 23, 42, 0.62);
+      box-shadow: 0 0 0 1px rgba(226,232,240,0.28);
+    }
+
+    .line-swatch.active {
+      outline: 2px solid #f8fafc;
+      outline-offset: 2px;
+    }
+
+    .line-tools button:disabled {
+      opacity: 0.42;
+      cursor: default;
+    }
+
+    .line-tools button.active {
+      background: #dce6f3;
+      color: #111827;
+      border-color: #dce6f3;
+    }
+
+    .flow-node {
+      position: absolute;
+      width: 220px;
+      min-height: 96px;
+      padding: 14px 12px;
+      border-radius: 18px;
+      border: 1px solid rgba(226, 232, 240, 0.24);
+      background: #2d343f;
+      color: var(--ink);
+      box-shadow: 0 16px 42px rgba(4, 8, 14, 0.28);
+      cursor: move;
+      user-select: none;
+      isolation: isolate;
+    }
+
+    .flow-node.selected,
+    .flow-node.connecting {
+      outline: 3px solid rgba(147, 197, 253, 0.88);
+      outline-offset: 5px;
+    }
+
+    .flow-node.connect-target {
+      outline: 2px solid rgba(255, 255, 255, 0.92);
+      outline-offset: 6px;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.16),
+        0 16px 44px rgba(4, 8, 14, 0.28);
+      transform: scale(1.01);
+      transition: transform 120ms ease, outline-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .flow-node textarea {
+      width: 100%;
+      min-height: 68px;
+      border: 0;
+      resize: none;
+      outline: none;
+      background: transparent;
+      color: var(--ink);
+      font-size: 16px;
+      line-height: 1.35;
+      font-weight: 700;
+      user-select: text;
+    }
+
+    .flow-node.align-center textarea,
+    .flow-node.align-full textarea {
+      text-align: center;
+    }
+
+    .flow-node.align-full {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .flow-node.align-full textarea {
+      flex: 1 1 auto;
+    }
+
+    .flow-node-actions {
+      position: absolute;
+      top: 7px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .flow-node-action {
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: rgba(226, 232, 240, 0.14);
+      border: 1px solid rgba(226, 232, 240, 0.16);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .flow-node-action:hover,
+    .flow-node-action.active {
+      background: rgba(147, 197, 253, 0.28);
+      border-color: rgba(147, 197, 253, 0.56);
+    }
+
+    .flow-node-action.align-action {
+      padding: 0 6px;
+    }
+
+    .note {
+      position: absolute;
+      width: 210px;
+      min-height: 168px;
+      padding: 44px 14px 14px;
+      border: 1px solid rgba(20, 24, 30, 0.13);
+      border-radius: 6px;
+      box-shadow: 0 10px 24px rgba(31, 37, 45, 0.15);
+      cursor: move;
+      user-select: none;
+      overflow: hidden;
+      isolation: isolate;
+      transform-origin: center;
+    }
+
+    .note::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 26px;
+      border-radius: 6px 6px 0 0;
+      background: rgba(255,255,255,0.22);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .note-tools {
+      position: absolute;
+      top: 7px;
+      left: 8px;
+      right: 8px;
+      z-index: 2;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .note-tool {
+      width: 28px;
+      height: 24px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.46);
+      border: 1px solid rgba(31, 37, 45, 0.14);
+      color: #1f2937;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .note-tool:hover,
+    .note-tool.active {
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .note.selected {
+      outline: 3px solid rgba(37, 99, 235, 0.78);
+      outline-offset: 4px;
+      box-shadow: 0 16px 34px rgba(31, 37, 45, 0.22);
+    }
+
+    .note textarea {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      min-height: 106px;
+      border: 0;
+      padding: 0;
+      resize: none;
+      outline: none;
+      background: transparent;
+      color: #1f2937;
+      line-height: 1.32;
+      font-size: 17px;
+      font-weight: 650;
+      user-select: text;
+    }
+
+    .checklist {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-height: 106px;
+    }
+
+    .check-item {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .check-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #2563eb;
+    }
+
+    .check-item input[type="text"] {
+      min-width: 0;
+      border: 0;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.22);
+      background: transparent;
+      color: #1f2937;
+      outline: none;
+      font-size: 15px;
+      font-weight: 650;
+    }
+
+    .check-add {
+      align-self: flex-start;
+      margin-top: 2px;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.48);
+      border: 1px solid rgba(31, 37, 45, 0.14);
+      color: #1f2937;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .note-group-tag {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 8px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      color: rgba(31, 41, 55, 0.72);
+      font-size: 12px;
+      font-weight: 800;
+      pointer-events: none;
+    }
+
+    .note-group-dot {
+      width: 9px;
+      height: 9px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      border: 1px solid rgba(31, 37, 45, 0.2);
+    }
+
+    .note-group-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .group {
+      position: absolute;
+      min-width: 520px;
+      min-height: 220px;
+      padding-top: 44px;
+      border: 2px solid rgba(38, 47, 58, 0.24);
+      border-radius: 8px;
+      background: var(--group);
+      box-shadow: 0 16px 42px rgba(31, 37, 45, 0.09) inset;
+      pointer-events: auto;
+      cursor: move;
+    }
+
+    .group.selected {
+      outline: 3px solid rgba(226, 232, 240, 0.72);
+      outline-offset: 5px;
+    }
+
+    .group.drop-target {
+      outline: 4px solid rgba(255, 255, 255, 0.9);
+      outline-offset: 8px;
+      box-shadow:
+        0 0 0 10px rgba(255, 255, 255, 0.12),
+        0 18px 60px rgba(4, 8, 14, 0.32),
+        0 16px 42px rgba(31, 37, 45, 0.09) inset;
+      transform: scale(1.015);
+      transition: transform 140ms ease, outline-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    .group-title {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      right: 298px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: rgba(31, 41, 55, 0.72);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .group-actions {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      pointer-events: auto;
+    }
+
+    .group-action {
+      width: auto;
+      height: 30px;
+      padding: 0 9px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(31, 37, 45, 0.18);
+      color: rgba(31, 41, 55, 0.78);
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.82) inset;
+    }
+
+    .group-action:hover {
+      background: #fff;
+      color: #111827;
+    }
+
+    .group-palette {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .group-swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid rgba(15, 23, 42, 0.45);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.38);
+    }
+
+    .group-swatch.active {
+      outline: 2px solid #fff;
+      outline-offset: 1px;
+    }
+
+    .selection-box {
+      position: fixed;
+      z-index: 15;
+      border: 1px solid rgba(37, 99, 235, 0.9);
+      background: rgba(37, 99, 235, 0.12);
+      pointer-events: none;
+      display: none;
+    }
+
+    .empty {
+      position: fixed;
+      left: 50%;
+      top: 52%;
+      transform: translate(-50%, -50%);
+      z-index: 18;
+      color: rgba(226, 232, 240, 0.22);
+      font-size: clamp(28px, 6vw, 72px);
+      font-weight: 850;
+      letter-spacing: 0;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(13, 18, 26, 0.62);
+      backdrop-filter: blur(4px);
+    }
+
+    .modal.open {
+      display: flex;
+    }
+
+    .dialog {
+      width: min(440px, 100%);
+      border-radius: 8px;
+      padding: 20px;
+      border: 2px solid rgba(37, 99, 235, 0.68);
+      background: var(--panel-solid);
+      box-shadow: 0 26px 80px rgba(6, 12, 24, 0.36);
+    }
+
+    .dialog h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .dialog p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .dialog input {
+      width: 100%;
+      height: 46px;
+      border-radius: 7px;
+      border: 1px solid rgba(31, 37, 45, 0.2);
+      padding: 0 12px;
+      outline: none;
+      background: #f8fafc;
+      color: #111827;
+    }
+
+    .dialog input:focus {
+      border-color: rgba(37, 99, 235, 0.72);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .dialog-actions button {
+      height: 40px;
+      padding: 0 14px;
+      border-radius: 7px;
+      background: #303743;
+      color: var(--ink);
+      border: 1px solid rgba(226, 232, 240, 0.14);
+    }
+
+    .dialog-actions .confirm {
+      color: white;
+      background: #2563eb;
+      border-color: #2563eb;
+    }
+
+    @media (max-width: 720px) {
+      .toolbar {
+        flex-wrap: wrap;
+        right: 16px;
+      }
+
+      .hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="app" class="app" aria-label="Project board">
+    <section class="toolbar" aria-label="Board tools">
+      <button id="planningTab" class="mode-button active" title="Planning board">Planning</button>
+      <button id="flowTab" class="mode-button" title="Flow chart">Flow Chart</button>
+      <div class="divider" aria-hidden="true"></div>
+      <button id="addNote" class="primary board-tool" title="Add sticky note">+ Note</button>
+      <button id="addFlowNode" class="primary flow-tool tool-hidden" title="Add flow chart bubble">+ Bubble</button>
+      <div id="flowLineTools" class="line-tools flow-tool tool-hidden" aria-label="Connector line styles"></div>
+      <div id="flowAlignTools" class="line-tools flow-tool tool-hidden" aria-label="Flow text alignment"></div>
+      <div class="palette board-tool" id="palette" aria-label="Sticky note colors"></div>
+      <div class="divider board-tool" aria-hidden="true"></div>
+      <button id="groupSelected" class="board-tool" title="Group selected notes">Group</button>
+      <button id="deleteSelected" title="Delete selected item">Delete</button>
+      <div class="divider" aria-hidden="true"></div>
+      <button id="zoomOut" title="Zoom out">-</button>
+      <div id="zoomReadout" class="zoom-pill" aria-live="polite">100%</div>
+      <button id="zoomIn" title="Zoom in">+</button>
+      <button id="resetView" title="Reset view">Reset</button>
+      <button id="exportData" title="Download a backup of this board">Backup</button>
+      <button id="importDataButton" title="Restore a board backup">Restore</button>
+    </section>
+    <input id="importData" type="file" accept="application/json,.json" hidden>
+
+    <div id="viewport" class="viewport">
+      <div id="world" class="world"></div>
+    </div>
+
+    <div id="selectionBox" class="selection-box"></div>
+    <aside id="hint" class="hint">Drag the board to pan. Use the mouse wheel or trackpad to zoom. Shift-drag to select several notes, then create a group.</aside>
+  </main>
+
+  <div id="empty" class="empty">Project Board</div>
+
+  <div id="groupModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="groupTitle">
+    <div class="dialog">
+      <h2 id="groupTitle">Name this group</h2>
+      <p id="groupSummary">Selected sticky notes will sit inside a labeled board area.</p>
+      <input id="groupName" type="text" maxlength="40" placeholder="Group name">
+      <div class="dialog-actions">
+        <button id="cancelGroup">Cancel</button>
+        <button id="confirmGroup" class="confirm">Save group</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const colors = [
+      { name: "Yellow", value: "#fff3a7" },
+      { name: "Pink", value: "#ffc0d6" },
+      { name: "Green", value: "#c9f5c9" },
+      { name: "Blue", value: "#bfe1ff" },
+      { name: "Orange", value: "#ffd49a" },
+      { name: "Lavender", value: "#d8ccff" }
+    ];
+
+    const groupColors = ["#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed", "#0891b2", "#be123c"];
+    const lineColors = ["#e2e8f0", "#60a5fa", "#34d399", "#f59e0b", "#f472b6", "#a78bfa", "#f87171"];
+
+    const app = document.getElementById("app");
+    const viewport = document.getElementById("viewport");
+    const world = document.getElementById("world");
+    const empty = document.getElementById("empty");
+    const palette = document.getElementById("palette");
+    const selectionBox = document.getElementById("selectionBox");
+    const groupModal = document.getElementById("groupModal");
+    const groupName = document.getElementById("groupName");
+    const groupSummary = document.getElementById("groupSummary");
+    const zoomReadout = document.getElementById("zoomReadout");
+    const flowLineTools = document.getElementById("flowLineTools");
+    const flowAlignTools = document.getElementById("flowAlignTools");
+    const importData = document.getElementById("importData");
+    const planningTab = document.getElementById("planningTab");
+    const flowTab = document.getElementById("flowTab");
+    const hint = document.getElementById("hint");
+
+    const board = {
+      notes: [],
+      groups: [],
+      selectedIds: new Set(),
+      selectedGroupId: null,
+      dropTargetGroupId: null,
+      color: colors[0].value,
+      view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 },
+      nextZ: 1,
+      editingGroupId: null,
+      mode: null
+    };
+
+    const flow = {
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+      selectedNodeIds: new Set(),
+      selectedEdgeIds: new Set(),
+      connectFromId: null,
+      connectTargetId: null,
+      previewPoint: null,
+      view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 }
+    };
+
+    let activeMode = "board";
+
+    const storageKey = "project-board-v1";
+
+    function uid(prefix) {
+      return `${prefix}-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+    }
+
+    function getSaveData() {
+      return {
+        notes: board.notes,
+        groups: board.groups,
+        color: board.color,
+        view: board.view,
+        nextZ: board.nextZ,
+        activeMode,
+        flow: {
+          nodes: flow.nodes,
+          edges: flow.edges,
+          view: flow.view
+        }
+      };
+    }
+
+    function applySavedData(data) {
+      board.notes = Array.isArray(data.notes) ? data.notes : [];
+      board.groups = Array.isArray(data.groups) ? data.groups : [];
+      board.notes.forEach(note => {
+        note.bold = Boolean(note.bold);
+        note.italic = Boolean(note.italic);
+        note.checklist = Boolean(note.checklist);
+        if (note.checklist && !Array.isArray(note.items)) {
+          note.items = (note.text || "").split("\n").filter(Boolean).map(text => ({ text, done: false }));
+        }
+      });
+      board.groups.forEach((group, index) => {
+        group.color = group.color || groupColors[index % groupColors.length];
+        group.noteColor = group.noteColor || colors[index % colors.length].value;
+      });
+      board.color = data.color || colors[0].value;
+      board.view = data.view || board.view;
+      if (data.flow) {
+        flow.nodes = Array.isArray(data.flow.nodes) ? data.flow.nodes : [];
+        flow.nodes.forEach(node => {
+          node.id = node.id || uid("flow");
+          node.align = node.align || "left";
+        });
+        flow.edges = Array.isArray(data.flow.edges) ? data.flow.edges : [];
+        flow.edges.forEach(edge => {
+          edge.id = edge.id || uid("edge");
+          edge.color = edge.color || lineColors[0];
+          edge.dotted = Boolean(edge.dotted);
+        });
+        flow.view = data.flow.view || flow.view;
+      } else {
+        flow.nodes = [];
+        flow.edges = [];
+      }
+      activeMode = data.activeMode === "flow" ? "flow" : "board";
+      board.selectedIds = new Set();
+      board.selectedGroupId = null;
+      flow.selectedNodeId = null;
+      flow.selectedNodeIds = new Set();
+      flow.selectedEdgeIds = new Set();
+      flow.connectFromId = null;
+      flow.connectTargetId = null;
+      flow.previewPoint = null;
+      const highestNoteZ = board.notes.reduce((highest, note, index) => {
+        if (!note.z) note.z = index + 1;
+        return Math.max(highest, note.z);
+      }, 0);
+      const highestFlowZ = flow.nodes.reduce((highest, node, index) => {
+        if (!node.z) node.z = highestNoteZ + index + 1;
+        return Math.max(highest, node.z);
+      }, 0);
+      board.nextZ = Math.max(data.nextZ || 1, highestNoteZ + 1, highestFlowZ + 1);
+    }
+
+    function save() {
+      localStorage.setItem(storageKey, JSON.stringify(getSaveData()));
+    }
+
+    function load() {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      try {
+        applySavedData(JSON.parse(raw));
+      } catch {
+        localStorage.removeItem(storageKey);
+      }
+    }
+
+    function exportBoardData() {
+      const payload = {
+        app: "project-board",
+        exportedAt: new Date().toISOString(),
+        ...getSaveData()
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = URL.createObjectURL(blob);
+      link.download = `project-board-backup-${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 500);
+    }
+
+    function importBoardData(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!data || (!Array.isArray(data.notes) && !data.flow)) {
+            throw new Error("Invalid backup");
+          }
+          const shouldReplace = window.confirm("Restore this backup? This will replace the current board in this browser.");
+          if (!shouldReplace) return;
+          applySavedData(data);
+          save();
+          render();
+        } catch {
+          window.alert("That file does not look like a project board backup.");
+        } finally {
+          importData.value = "";
+        }
+      });
+      reader.readAsText(file);
+    }
+
+    function screenToWorld(clientX, clientY) {
+      const view = activeMode === "flow" ? flow.view : board.view;
+      return {
+        x: (clientX - view.x) / view.scale,
+        y: (clientY - view.y) / view.scale
+      };
+    }
+
+    function applyView() {
+      const view = activeMode === "flow" ? flow.view : board.view;
+      world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+      app.style.backgroundPosition = `${view.x}px ${view.y}px`;
+      app.style.backgroundSize = `${24 * view.scale}px ${24 * view.scale}px, ${24 * view.scale}px ${24 * view.scale}px, ${120 * view.scale}px ${120 * view.scale}px, ${120 * view.scale}px ${120 * view.scale}px`;
+      zoomReadout.textContent = `${Math.round(view.scale * 100)}%`;
+    }
+
+    function renderPalette() {
+      palette.innerHTML = "";
+      colors.forEach(color => {
+        const button = document.createElement("button");
+        button.className = "swatch" + (board.color === color.value ? " active" : "");
+        button.style.background = color.value;
+        button.title = color.name;
+        button.setAttribute("aria-label", `${color.name} sticky note`);
+        button.addEventListener("click", () => {
+          board.color = color.value;
+          renderPalette();
+          save();
+        });
+        palette.appendChild(button);
+      });
+    }
+
+    function selectedEdges() {
+      return flow.edges.filter(edge => flow.selectedEdgeIds.has(edge.id));
+    }
+
+    function selectedFlowNodes() {
+      return flow.nodes.filter(node => flow.selectedNodeIds.has(node.id));
+    }
+
+    function renderFlowLineTools() {
+      flowLineTools.innerHTML = "";
+      const selected = selectedEdges();
+      const hasSelection = selected.length > 0;
+
+      lineColors.forEach(color => {
+        const button = document.createElement("button");
+        button.className = "line-swatch" + (hasSelection && selected.every(edge => (edge.color || lineColors[0]) === color) ? " active" : "");
+        button.type = "button";
+        button.title = "Set connector color";
+        button.style.background = color;
+        button.disabled = !hasSelection;
+        button.addEventListener("click", () => {
+          selectedEdges().forEach(edge => {
+            edge.color = color;
+          });
+          render();
+          save();
+        });
+        flowLineTools.appendChild(button);
+      });
+
+      const dotted = document.createElement("button");
+      dotted.type = "button";
+      dotted.textContent = "Dotted";
+      dotted.title = "Toggle dotted connector";
+      dotted.className = hasSelection && selected.every(edge => edge.dotted) ? "active" : "";
+      dotted.disabled = !hasSelection;
+      dotted.addEventListener("click", () => {
+        const makeDotted = !selectedEdges().every(edge => edge.dotted);
+        selectedEdges().forEach(edge => {
+          edge.dotted = makeDotted;
+        });
+        render();
+        save();
+      });
+      flowLineTools.appendChild(dotted);
+    }
+
+    function renderFlowAlignTools() {
+      flowAlignTools.innerHTML = "";
+      const selected = selectedFlowNodes();
+      const hasSelection = selected.length > 0;
+      [
+        { label: "Left", value: "left", title: "Left align selected bubbles" },
+        { label: "Center", value: "center", title: "Center selected bubble text" },
+        { label: "Full", value: "full", title: "Center selected bubble text in the box" }
+      ].forEach(option => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = option.label;
+        button.title = option.title;
+        button.className = hasSelection && selected.every(node => (node.align || "left") === option.value) ? "active" : "";
+        button.disabled = !hasSelection;
+        button.addEventListener("click", () => {
+          selectedFlowNodes().forEach(node => {
+            node.align = option.value;
+          });
+          render();
+          save();
+        });
+        flowAlignTools.appendChild(button);
+      });
+    }
+
+    function fitGroupsToMembers(excludeIds = new Set()) {
+      const pad = 28;
+      const header = 58;
+      board.groups.forEach(group => {
+        const members = board.notes.filter(note => note.groupId === group.id && !excludeIds.has(note.id));
+        if (!members.length) {
+          group.width = Math.max(520, group.width || 520);
+          group.height = Math.max(250, group.height || 250);
+          return;
+        }
+        const left = Math.min(...members.map(note => note.x));
+        const top = Math.min(...members.map(note => note.y));
+        const right = Math.max(...members.map(note => note.x + 210));
+        const bottom = Math.max(...members.map(note => note.y + 168));
+        group.x = left - pad;
+        group.y = top - header;
+        group.width = Math.max(520, right - left + pad * 2);
+        group.height = Math.max(250, bottom - top + header + pad);
+      });
+    }
+
+    function findDropTargetGroup(notes) {
+      const candidates = notes
+        .map(note => ({ x: note.x + 105, y: note.y + 84 }))
+        .filter(Boolean);
+      for (let index = board.groups.length - 1; index >= 0; index -= 1) {
+        const group = board.groups[index];
+        const inside = candidates.some(point =>
+          point.x >= group.x &&
+          point.x <= group.x + group.width &&
+          point.y >= group.y &&
+          point.y <= group.y + group.height
+        );
+        if (inside) return group.id;
+      }
+      return null;
+    }
+
+    function renderGroups() {
+      fitGroupsToMembers();
+      document.querySelectorAll(".group").forEach(node => node.remove());
+      board.groups.forEach(group => {
+        const div = document.createElement("div");
+        div.className = "group" +
+          (board.selectedGroupId === group.id ? " selected" : "") +
+          (board.dropTargetGroupId === group.id ? " drop-target" : "");
+        div.style.left = `${group.x}px`;
+        div.style.top = `${group.y}px`;
+        div.style.width = `${group.width}px`;
+        div.style.height = `${group.height}px`;
+        div.style.borderColor = group.color || groupColors[0];
+        div.style.background = `${group.color || groupColors[0]}20`;
+        div.dataset.id = group.id;
+        div.addEventListener("pointerdown", event => beginGroupDrag(event, group.id));
+
+        const title = document.createElement("div");
+        title.className = "group-title";
+        title.textContent = group.name;
+        title.style.color = group.color || groupColors[0];
+
+        const actions = document.createElement("div");
+        actions.className = "group-actions";
+
+        const rename = document.createElement("button");
+        rename.className = "group-action";
+        rename.type = "button";
+        rename.title = "Rename group";
+        rename.textContent = "Rename";
+        rename.addEventListener("pointerdown", event => event.stopPropagation());
+        rename.addEventListener("click", event => {
+          event.stopPropagation();
+          openRenameGroupModal(group.id);
+        });
+
+        const groupPalette = document.createElement("div");
+        groupPalette.className = "group-palette";
+        colors.forEach(color => {
+          const swatch = document.createElement("button");
+          swatch.className = "group-swatch" + ((group.noteColor || colors[0].value) === color.value ? " active" : "");
+          swatch.type = "button";
+          swatch.title = `${color.name} group note`;
+          swatch.style.background = color.value;
+          swatch.addEventListener("pointerdown", event => event.stopPropagation());
+          swatch.addEventListener("click", event => {
+            event.stopPropagation();
+            group.noteColor = color.value;
+            render();
+            save();
+          });
+          groupPalette.appendChild(swatch);
+        });
+
+        const add = document.createElement("button");
+        add.className = "group-action";
+        add.type = "button";
+        add.title = "Add sticky note to group";
+        add.textContent = "+ Note";
+        add.addEventListener("pointerdown", event => event.stopPropagation());
+        add.addEventListener("click", event => {
+          event.stopPropagation();
+          createNoteInGroup(group.id);
+        });
+
+        const remove = document.createElement("button");
+        remove.className = "group-action";
+        remove.type = "button";
+        remove.title = "Delete group";
+        remove.textContent = "Delete";
+        remove.addEventListener("pointerdown", event => event.stopPropagation());
+        remove.addEventListener("click", event => {
+          event.stopPropagation();
+          deleteGroup(group.id);
+        });
+
+        actions.append(rename, groupPalette, add, remove);
+        div.append(title, actions);
+        world.prepend(div);
+      });
+    }
+
+    function renderNotes() {
+      document.querySelectorAll(".note").forEach(node => node.remove());
+      board.notes.forEach(note => {
+        const div = document.createElement("article");
+        div.className = "note" + (board.selectedIds.has(note.id) ? " selected" : "");
+        div.dataset.id = note.id;
+        div.style.left = `${note.x}px`;
+        div.style.top = `${note.y}px`;
+        div.style.background = note.color;
+        div.style.zIndex = note.z || 1;
+        const group = board.groups.find(item => item.id === note.groupId);
+        if (group) {
+          div.style.borderColor = group.color || groupColors[0];
+          div.style.boxShadow = `0 10px 24px rgba(31, 37, 45, 0.15), inset 0 -4px 0 ${group.color || groupColors[0]}`;
+        }
+
+        const tools = document.createElement("div");
+        tools.className = "note-tools";
+
+        const bold = document.createElement("button");
+        bold.className = "note-tool" + (note.bold ? " active" : "");
+        bold.type = "button";
+        bold.title = "Bold";
+        bold.textContent = "B";
+        bold.addEventListener("pointerdown", event => event.stopPropagation());
+        bold.addEventListener("click", event => {
+          event.stopPropagation();
+          note.bold = !note.bold;
+          renderNotes();
+          save();
+        });
+
+        const italic = document.createElement("button");
+        italic.className = "note-tool" + (note.italic ? " active" : "");
+        italic.type = "button";
+        italic.title = "Italic";
+        italic.textContent = "I";
+        italic.style.fontStyle = "italic";
+        italic.addEventListener("pointerdown", event => event.stopPropagation());
+        italic.addEventListener("click", event => {
+          event.stopPropagation();
+          note.italic = !note.italic;
+          renderNotes();
+          save();
+        });
+
+        const checklist = document.createElement("button");
+        checklist.className = "note-tool" + (note.checklist ? " active" : "");
+        checklist.type = "button";
+        checklist.title = "Toggle checklist";
+        checklist.textContent = "List";
+        checklist.style.width = "42px";
+        checklist.addEventListener("pointerdown", event => event.stopPropagation());
+        checklist.addEventListener("click", event => {
+          event.stopPropagation();
+          note.checklist = !note.checklist;
+          if (note.checklist) {
+            note.items = (note.text || "").split("\n").filter(Boolean).map(text => ({ text, done: false }));
+            if (!note.items.length) note.items = [{ text: "", done: false }];
+          } else {
+            note.text = (note.items || []).map(item => item.text).filter(Boolean).join("\n");
+          }
+          renderNotes();
+          save();
+        });
+
+        tools.append(bold, italic, checklist);
+        div.appendChild(tools);
+
+        if (note.checklist) {
+          if (!Array.isArray(note.items) || !note.items.length) note.items = [{ text: "", done: false }];
+          const list = document.createElement("div");
+          list.className = "checklist";
+          if (note.bold) list.style.fontWeight = "800";
+          if (note.italic) list.style.fontStyle = "italic";
+
+          note.items.forEach((item, index) => {
+            const row = document.createElement("label");
+            row.className = "check-item";
+
+            const done = document.createElement("input");
+            done.type = "checkbox";
+            done.checked = Boolean(item.done);
+            done.addEventListener("pointerdown", event => event.stopPropagation());
+            done.addEventListener("change", () => {
+              item.done = done.checked;
+              save();
+            });
+
+            const text = document.createElement("input");
+            text.type = "text";
+            text.value = item.text || "";
+            text.placeholder = "Checklist item";
+            text.style.fontWeight = note.bold ? "800" : "650";
+            text.style.fontStyle = note.italic ? "italic" : "normal";
+            text.addEventListener("pointerdown", event => event.stopPropagation());
+            text.addEventListener("input", () => {
+              item.text = text.value;
+              save();
+            });
+            text.addEventListener("keydown", event => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                note.items.splice(index + 1, 0, { text: "", done: false });
+                renderNotes();
+                requestAnimationFrame(() => {
+                  const inputs = document.querySelectorAll(`[data-id="${note.id}"] .check-item input[type="text"]`);
+                  inputs[index + 1]?.focus();
+                });
+                save();
+              }
+            });
+
+            row.append(done, text);
+            list.appendChild(row);
+          });
+
+          const addItem = document.createElement("button");
+          addItem.className = "check-add";
+          addItem.type = "button";
+          addItem.textContent = "+ Item";
+          addItem.addEventListener("pointerdown", event => event.stopPropagation());
+          addItem.addEventListener("click", event => {
+            event.stopPropagation();
+            note.items.push({ text: "", done: false });
+            renderNotes();
+            save();
+          });
+          list.appendChild(addItem);
+          div.appendChild(list);
+        } else {
+          const textarea = document.createElement("textarea");
+          textarea.value = note.text;
+          textarea.placeholder = "Write a task...";
+          textarea.style.fontWeight = note.bold ? "800" : "650";
+          textarea.style.fontStyle = note.italic ? "italic" : "normal";
+          textarea.addEventListener("input", () => {
+            note.text = textarea.value;
+            save();
+          });
+          textarea.addEventListener("pointerdown", event => event.stopPropagation());
+          div.append(textarea);
+        }
+
+        if (group) {
+          const tag = document.createElement("div");
+          tag.className = "note-group-tag";
+
+          const dot = document.createElement("span");
+          dot.className = "note-group-dot";
+          dot.style.background = group.color || groupColors[0];
+
+          const name = document.createElement("span");
+          name.className = "note-group-name";
+          name.textContent = group.name;
+
+          tag.append(dot, name);
+          div.appendChild(tag);
+        }
+        div.addEventListener("pointerdown", event => beginNoteDrag(event, note.id));
+        world.appendChild(div);
+      });
+
+      empty.style.display = (board.notes.length || board.groups.length) ? "none" : "block";
+    }
+
+    function nodeCenter(node) {
+      return { x: node.x + 110, y: node.y + 48 };
+    }
+
+    function edgePath(fromNode, toPoint) {
+      const from = nodeCenter(fromNode);
+      const dx = Math.max(80, Math.abs(toPoint.x - from.x) * 0.5);
+      return `M ${from.x} ${from.y} C ${from.x + dx} ${from.y}, ${toPoint.x - dx} ${toPoint.y}, ${toPoint.x} ${toPoint.y}`;
+    }
+
+    function findFlowNodeAt(point, excludeId = null) {
+      for (let index = flow.nodes.length - 1; index >= 0; index -= 1) {
+        const node = flow.nodes[index];
+        if (node.id === excludeId) continue;
+        const inside =
+          point.x >= node.x &&
+          point.x <= node.x + 220 &&
+          point.y >= node.y &&
+          point.y <= node.y + 96;
+        if (inside) return node.id;
+      }
+      return null;
+    }
+
+    function renderFlow() {
+      document.querySelectorAll(".flow-node, .flow-edges").forEach(node => node.remove());
+
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.classList.add("flow-edges");
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      lineColors.forEach((color, index) => {
+        const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+        marker.id = `arrowHead-${index}`;
+        marker.setAttribute("markerWidth", "10");
+        marker.setAttribute("markerHeight", "10");
+        marker.setAttribute("refX", "8");
+        marker.setAttribute("refY", "3");
+        marker.setAttribute("orient", "auto");
+        marker.setAttribute("markerUnits", "strokeWidth");
+        const markerPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        markerPath.setAttribute("d", "M0,0 L0,6 L9,3 z");
+        markerPath.setAttribute("fill", color);
+        marker.appendChild(markerPath);
+        defs.appendChild(marker);
+      });
+      svg.appendChild(defs);
+
+      flow.edges.forEach(edge => {
+        const fromNode = flow.nodes.find(node => node.id === edge.from);
+        const toNode = flow.nodes.find(node => node.id === edge.to);
+        if (!fromNode || !toNode) return;
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.classList.add("flow-edge");
+        if (flow.selectedEdgeIds.has(edge.id)) path.classList.add("selected");
+        if (edge.dotted) path.classList.add("dotted");
+        const color = edge.color || lineColors[0];
+        const markerIndex = Math.max(0, lineColors.indexOf(color));
+        path.dataset.id = edge.id;
+        path.style.stroke = color;
+        path.setAttribute("marker-end", `url(#arrowHead-${markerIndex})`);
+        path.setAttribute("d", edgePath(fromNode, nodeCenter(toNode)));
+        path.addEventListener("pointerdown", event => event.stopPropagation());
+        path.addEventListener("click", event => {
+          event.stopPropagation();
+          if (event.ctrlKey || event.metaKey) {
+            if (flow.selectedEdgeIds.has(edge.id)) {
+              flow.selectedEdgeIds.delete(edge.id);
+            } else {
+              flow.selectedEdgeIds.add(edge.id);
+            }
+          } else {
+            flow.selectedEdgeIds = new Set([edge.id]);
+          }
+          flow.selectedNodeId = null;
+          flow.selectedNodeIds = new Set();
+          flow.connectFromId = null;
+          flow.connectTargetId = null;
+          flow.previewPoint = null;
+          render();
+        });
+        svg.appendChild(path);
+      });
+
+      if (flow.connectFromId && flow.previewPoint) {
+        const fromNode = flow.nodes.find(node => node.id === flow.connectFromId);
+        if (fromNode) {
+          const preview = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          preview.classList.add("flow-edge", "preview");
+          preview.setAttribute("d", edgePath(fromNode, flow.previewPoint));
+          svg.appendChild(preview);
+        }
+      }
+
+      world.appendChild(svg);
+
+      flow.nodes.forEach(node => {
+        const div = document.createElement("article");
+        div.className = "flow-node" +
+          ` align-${node.align || "left"}` +
+          (flow.selectedNodeIds.has(node.id) ? " selected" : "") +
+          (flow.connectFromId === node.id ? " connecting" : "") +
+          (flow.connectTargetId === node.id ? " connect-target" : "");
+        div.dataset.id = node.id;
+        div.style.left = `${node.x}px`;
+        div.style.top = `${node.y}px`;
+        div.style.zIndex = node.z || 1;
+
+        const textarea = document.createElement("textarea");
+        textarea.value = node.text;
+        textarea.placeholder = "Flow step...";
+        textarea.addEventListener("input", () => {
+          node.text = textarea.value;
+          save();
+        });
+        textarea.addEventListener("pointerdown", event => {
+          if (event.button === 1 || (event.button === 0 && flow.connectFromId)) {
+            beginFlowNodeDrag(event, node.id);
+            return;
+          }
+          event.stopPropagation();
+        });
+        textarea.addEventListener("auxclick", event => event.preventDefault());
+
+        div.append(textarea);
+        div.addEventListener("pointerdown", event => beginFlowNodeDrag(event, node.id));
+        div.addEventListener("auxclick", event => event.preventDefault());
+        world.appendChild(div);
+      });
+
+      empty.textContent = "Flow Chart";
+      empty.style.display = flow.nodes.length ? "none" : "block";
+      renderFlowLineTools();
+      renderFlowAlignTools();
+    }
+
+    function createFlowNode(x, y, text = "") {
+      const node = {
+        id: uid("flow"),
+        x,
+        y,
+        text,
+        align: "left",
+        z: board.nextZ++
+      };
+      flow.nodes.push(node);
+      flow.selectedNodeId = node.id;
+      flow.selectedNodeIds = new Set([node.id]);
+      flow.selectedEdgeIds = new Set();
+      flow.connectFromId = null;
+      flow.connectTargetId = null;
+      flow.previewPoint = null;
+      render();
+      save();
+      requestAnimationFrame(() => {
+        document.querySelector(`.flow-node[data-id="${node.id}"] textarea`)?.focus();
+      });
+    }
+
+    function removeFlowNode(id) {
+      flow.nodes = flow.nodes.filter(node => node.id !== id);
+      flow.edges = flow.edges.filter(edge => edge.from !== id && edge.to !== id);
+      flow.selectedEdgeIds = new Set([...flow.selectedEdgeIds].filter(edgeId => flow.edges.some(edge => edge.id === edgeId)));
+      if (flow.selectedNodeId === id) flow.selectedNodeId = null;
+      flow.selectedNodeIds.delete(id);
+      if (flow.connectFromId === id) flow.connectFromId = null;
+      if (flow.connectTargetId === id) flow.connectTargetId = null;
+      flow.previewPoint = null;
+      render();
+      save();
+    }
+
+    function removeSelectedFlowNodes() {
+      if (!flow.selectedNodeIds.size) return false;
+      const ids = new Set(flow.selectedNodeIds);
+      flow.nodes = flow.nodes.filter(node => !ids.has(node.id));
+      flow.edges = flow.edges.filter(edge => !ids.has(edge.from) && !ids.has(edge.to));
+      flow.selectedNodeId = null;
+      flow.selectedNodeIds = new Set();
+      flow.selectedEdgeIds = new Set([...flow.selectedEdgeIds].filter(edgeId => flow.edges.some(edge => edge.id === edgeId)));
+      if (ids.has(flow.connectFromId)) flow.connectFromId = null;
+      if (ids.has(flow.connectTargetId)) flow.connectTargetId = null;
+      flow.previewPoint = null;
+      render();
+      save();
+      return true;
+    }
+
+    function removeSelectedFlowEdges() {
+      if (!flow.selectedEdgeIds.size) return false;
+      flow.edges = flow.edges.filter(edge => !flow.selectedEdgeIds.has(edge.id));
+      flow.selectedEdgeIds = new Set();
+      render();
+      save();
+      return true;
+    }
+
+    function connectFlowNodes(from, to) {
+      if (!from || !to || from === to) return;
+      const exists = flow.edges.some(edge => edge.from === from && edge.to === to);
+      if (!exists) {
+        const edge = { id: uid("edge"), from, to, color: lineColors[0], dotted: false };
+        flow.edges.push(edge);
+        flow.selectedEdgeIds = new Set([edge.id]);
+      }
+      flow.connectFromId = null;
+      flow.connectTargetId = null;
+      flow.previewPoint = null;
+      flow.selectedNodeId = to;
+      flow.selectedNodeIds = new Set([to]);
+      render();
+      save();
+    }
+
+    function beginFlowNodeDrag(event, id) {
+      if (event.button !== 0 && event.button !== 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const node = flow.nodes.find(item => item.id === id);
+      if (!node) return;
+
+      if (event.button === 1) {
+        flow.connectFromId = id;
+        flow.previewPoint = nodeCenter(node);
+        flow.connectTargetId = null;
+        flow.selectedNodeId = id;
+        flow.selectedNodeIds = new Set([id]);
+        flow.selectedEdgeIds = new Set();
+        render();
+        return;
+      }
+
+      if (flow.connectFromId) {
+        if (flow.connectFromId !== id) {
+          connectFlowNodes(flow.connectFromId, id);
+        } else {
+          flow.connectFromId = null;
+          flow.previewPoint = null;
+          flow.connectTargetId = null;
+          render();
+        }
+        return;
+      }
+
+      if (event.ctrlKey || event.metaKey) {
+        if (flow.selectedNodeIds.has(id)) {
+          flow.selectedNodeIds.delete(id);
+        } else {
+          flow.selectedNodeIds.add(id);
+        }
+        flow.selectedNodeId = id;
+      } else if (!flow.selectedNodeIds.has(id)) {
+        flow.selectedNodeIds = new Set([id]);
+        flow.selectedNodeId = id;
+      } else {
+        flow.selectedNodeId = id;
+      }
+      flow.selectedEdgeIds = new Set();
+      const selectedNodes = flow.nodes.filter(item => flow.selectedNodeIds.has(item.id));
+      selectedNodes.forEach(item => {
+        item.z = board.nextZ++;
+      });
+      document.querySelectorAll(".flow-node").forEach(nodeEl => {
+        nodeEl.classList.toggle("selected", flow.selectedNodeIds.has(nodeEl.dataset.id));
+        const selected = flow.nodes.find(item => item.id === nodeEl.dataset.id);
+        if (selected) nodeEl.style.zIndex = selected.z || 1;
+      });
+      renderFlowLineTools();
+      renderFlowAlignTools();
+
+      const start = screenToWorld(event.clientX, event.clientY);
+      const originals = selectedNodes.map(item => ({ id: item.id, x: item.x, y: item.y }));
+      board.mode = "drag-flow-node";
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      const move = moveEvent => {
+        const now = screenToWorld(moveEvent.clientX, moveEvent.clientY);
+        const dx = now.x - start.x;
+        const dy = now.y - start.y;
+        originals.forEach(original => {
+          const item = flow.nodes.find(candidate => candidate.id === original.id);
+          if (!item) return;
+          item.x = original.x + dx;
+          item.y = original.y + dy;
+          const nodeEl = document.querySelector(`.flow-node[data-id="${item.id}"]`);
+          if (nodeEl) {
+            nodeEl.style.left = `${item.x}px`;
+            nodeEl.style.top = `${item.y}px`;
+            nodeEl.style.zIndex = item.z || 1;
+          }
+        });
+        renderFlow();
+      };
+
+      const up = () => {
+        board.mode = null;
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        save();
+      };
+
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+    }
+
+    function syncSelectionStyles() {
+      document.querySelectorAll(".note").forEach(node => {
+        node.classList.toggle("selected", board.selectedIds.has(node.dataset.id));
+      });
+    }
+
+    function syncGroupStyles() {
+      document.querySelectorAll(".group").forEach(node => {
+        node.classList.toggle("selected", board.selectedGroupId === node.dataset.id);
+        node.classList.toggle("drop-target", board.dropTargetGroupId === node.dataset.id);
+      });
+    }
+
+    function bringNotesToFront(ids) {
+      ids.forEach(id => {
+        const note = board.notes.find(item => item.id === id);
+        if (!note) return;
+        note.z = board.nextZ++;
+        const node = document.querySelector(`[data-id="${note.id}"]`);
+        if (node) node.style.zIndex = note.z;
+      });
+    }
+
+    function render() {
+      world.innerHTML = "";
+      if (activeMode === "flow") {
+        renderFlow();
+      } else {
+        empty.textContent = "Project Board";
+        fitGroupsToMembers();
+        renderGroups();
+        renderNotes();
+        renderPalette();
+      }
+      applyView();
+    }
+
+    function setActiveMode(mode) {
+      activeMode = mode;
+      planningTab.classList.toggle("active", mode === "board");
+      flowTab.classList.toggle("active", mode === "flow");
+      document.querySelectorAll(".board-tool").forEach(node => node.classList.toggle("tool-hidden", mode !== "board"));
+      document.querySelectorAll(".flow-tool").forEach(node => node.classList.toggle("tool-hidden", mode !== "flow"));
+      hint.textContent = mode === "flow"
+        ? "Drag the flow chart to pan. Middle-click a bubble to start a connector, then left-click another bubble to attach it."
+        : "Drag the board to pan. Use the mouse wheel or trackpad to zoom. Shift-drag to select several notes, then create a group.";
+      board.selectedIds = new Set();
+      board.selectedGroupId = null;
+      flow.selectedNodeId = null;
+      flow.selectedNodeIds = new Set();
+      flow.selectedEdgeIds = new Set();
+      flow.connectFromId = null;
+      flow.connectTargetId = null;
+      flow.previewPoint = null;
+      render();
+    }
+
+    function createNote(x, y, text = "", color = board.color, groupId = null) {
+      const note = {
+        id: uid("note"),
+        x,
+        y,
+        color,
+        text,
+        groupId,
+        bold: false,
+        italic: false,
+        checklist: false,
+        items: [],
+        z: board.nextZ++
+      };
+      board.notes.push(note);
+      board.selectedIds = new Set([note.id]);
+      board.selectedGroupId = null;
+      render();
+      save();
+      requestAnimationFrame(() => {
+        const field = document.querySelector(`[data-id="${note.id}"] textarea, [data-id="${note.id}"] .check-item input[type="text"]`);
+        field?.focus();
+      });
+    }
+
+    function createNoteInGroup(groupId) {
+      const group = board.groups.find(item => item.id === groupId);
+      if (!group) return;
+      const existing = board.notes.filter(note => note.groupId === groupId);
+      const offset = Math.min(existing.length * 18, 96);
+      createNote(group.x + 28 + offset, group.y + 74 + offset, "", group.noteColor || board.color, groupId);
+    }
+
+    function removeNotes(ids) {
+      const idSet = new Set(ids);
+      board.notes = board.notes.filter(note => !idSet.has(note.id));
+      board.selectedIds = new Set([...board.selectedIds].filter(id => !idSet.has(id)));
+      render();
+      save();
+    }
+
+    function beginNoteDrag(event, id) {
+      if (event.button !== 0) return;
+      event.stopPropagation();
+      const note = board.notes.find(item => item.id === id);
+      if (!note) return;
+      board.selectedGroupId = null;
+      syncGroupStyles();
+
+      if (!event.shiftKey && !board.selectedIds.has(id)) {
+        board.selectedIds = new Set([id]);
+        syncSelectionStyles();
+      } else if (event.shiftKey) {
+        board.selectedIds.add(id);
+        syncSelectionStyles();
+      }
+
+      bringNotesToFront([...board.selectedIds]);
+      const selectedNotes = board.notes.filter(item => board.selectedIds.has(item.id));
+      const start = screenToWorld(event.clientX, event.clientY);
+      const starts = selectedNotes.map(item => ({ id: item.id, x: item.x, y: item.y }));
+      const originalGroupIds = new Map(selectedNotes.map(item => [item.id, item.groupId || null]));
+      board.mode = "drag-note";
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      const move = moveEvent => {
+        const now = screenToWorld(moveEvent.clientX, moveEvent.clientY);
+        const dx = now.x - start.x;
+        const dy = now.y - start.y;
+        starts.forEach(original => {
+          const item = board.notes.find(candidate => candidate.id === original.id);
+          if (item) {
+            item.x = original.x + dx;
+            item.y = original.y + dy;
+            const node = document.querySelector(`[data-id="${item.id}"]`);
+            if (node) {
+              node.style.left = `${item.x}px`;
+              node.style.top = `${item.y}px`;
+            }
+          }
+        });
+        fitGroupsToMembers(new Set(starts.map(item => item.id)));
+        board.dropTargetGroupId = findDropTargetGroup(selectedNotes);
+        syncGroupStyles();
+        board.groups.forEach(group => {
+          const node = document.querySelector(`.group[data-id="${group.id}"]`);
+          if (!node) return;
+          node.style.left = `${group.x}px`;
+          node.style.top = `${group.y}px`;
+          node.style.width = `${group.width}px`;
+          node.style.height = `${group.height}px`;
+        });
+      };
+
+      const up = () => {
+        board.mode = null;
+        const targetGroupId = board.dropTargetGroupId;
+        selectedNotes.forEach(item => {
+          if (targetGroupId) {
+            item.groupId = targetGroupId;
+          } else if (originalGroupIds.get(item.id)) {
+            delete item.groupId;
+          }
+        });
+        board.dropTargetGroupId = null;
+        fitGroupsToMembers();
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        render();
+        save();
+      };
+
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+    }
+
+    function beginGroupDrag(event, groupId) {
+      if (event.button !== 0 || event.target.closest(".group-actions")) return;
+      event.stopPropagation();
+      const group = board.groups.find(item => item.id === groupId);
+      if (!group) return;
+      board.selectedIds = new Set();
+      board.selectedGroupId = groupId;
+      renderNotes();
+      syncGroupStyles();
+
+      const members = board.notes.filter(note => note.groupId === groupId);
+      bringNotesToFront(members.map(note => note.id));
+      const start = screenToWorld(event.clientX, event.clientY);
+      const groupStart = { x: group.x, y: group.y };
+      const noteStarts = members.map(note => ({ id: note.id, x: note.x, y: note.y }));
+      board.mode = "drag-group";
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      const move = moveEvent => {
+        const now = screenToWorld(moveEvent.clientX, moveEvent.clientY);
+        const dx = now.x - start.x;
+        const dy = now.y - start.y;
+        group.x = groupStart.x + dx;
+        group.y = groupStart.y + dy;
+        const groupNode = document.querySelector(`.group[data-id="${group.id}"]`);
+        if (groupNode) {
+          groupNode.style.left = `${group.x}px`;
+          groupNode.style.top = `${group.y}px`;
+        }
+        noteStarts.forEach(original => {
+          const note = board.notes.find(item => item.id === original.id);
+          if (!note) return;
+          note.x = original.x + dx;
+          note.y = original.y + dy;
+          const noteNode = document.querySelector(`.note[data-id="${note.id}"]`);
+          if (noteNode) {
+            noteNode.style.left = `${note.x}px`;
+            noteNode.style.top = `${note.y}px`;
+          }
+        });
+      };
+
+      const up = () => {
+        board.mode = null;
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        save();
+      };
+
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+    }
+
+    function beginPan(event) {
+      if (event.button !== 0 || event.shiftKey) return;
+      board.mode = "pan";
+      viewport.classList.add("dragging");
+      const view = activeMode === "flow" ? flow.view : board.view;
+      const start = { x: event.clientX, y: event.clientY, viewX: view.x, viewY: view.y };
+
+      const move = moveEvent => {
+        view.x = start.viewX + moveEvent.clientX - start.x;
+        view.y = start.viewY + moveEvent.clientY - start.y;
+        applyView();
+      };
+
+      const up = () => {
+        board.mode = null;
+        viewport.classList.remove("dragging");
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        save();
+      };
+
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+    }
+
+    function beginSelection(event) {
+      if (!event.shiftKey || event.button !== 0) return;
+      board.mode = "select";
+      const start = { x: event.clientX, y: event.clientY };
+      selectionBox.style.display = "block";
+
+      const move = moveEvent => {
+        const left = Math.min(start.x, moveEvent.clientX);
+        const top = Math.min(start.y, moveEvent.clientY);
+        const width = Math.abs(moveEvent.clientX - start.x);
+        const height = Math.abs(moveEvent.clientY - start.y);
+        selectionBox.style.left = `${left}px`;
+        selectionBox.style.top = `${top}px`;
+        selectionBox.style.width = `${width}px`;
+        selectionBox.style.height = `${height}px`;
+
+        const a = screenToWorld(left, top);
+        const b = screenToWorld(left + width, top + height);
+        const box = {
+          left: Math.min(a.x, b.x),
+          top: Math.min(a.y, b.y),
+          right: Math.max(a.x, b.x),
+          bottom: Math.max(a.y, b.y)
+        };
+        board.selectedIds = new Set(board.notes
+          .filter(note => note.x < box.right && note.x + 210 > box.left && note.y < box.bottom && note.y + 168 > box.top)
+          .map(note => note.id));
+        renderNotes();
+      };
+
+      const up = () => {
+        board.mode = null;
+        selectionBox.style.display = "none";
+        selectionBox.style.width = "0";
+        selectionBox.style.height = "0";
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      };
+
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+    }
+
+    function zoomAt(clientX, clientY, delta) {
+      const view = activeMode === "flow" ? flow.view : board.view;
+      const oldScale = view.scale;
+      const worldPoint = screenToWorld(clientX, clientY);
+      const next = Math.min(2.5, Math.max(0.28, oldScale * delta));
+      view.scale = next;
+      view.x = clientX - worldPoint.x * next;
+      view.y = clientY - worldPoint.y * next;
+      applyView();
+      save();
+    }
+
+    function selectedBounds() {
+      const selected = board.notes.filter(note => board.selectedIds.has(note.id));
+      if (!selected.length) return null;
+      const left = Math.min(...selected.map(note => note.x));
+      const top = Math.min(...selected.map(note => note.y));
+      const right = Math.max(...selected.map(note => note.x + 210));
+      const bottom = Math.max(...selected.map(note => note.y + 168));
+      return { left, top, right, bottom };
+    }
+
+    function openGroupModal() {
+      board.editingGroupId = null;
+      document.getElementById("groupTitle").textContent = "Name this group";
+      document.getElementById("confirmGroup").textContent = "Create group";
+      groupName.value = "";
+      groupSummary.textContent = board.selectedIds.size
+        ? `${board.selectedIds.size} sticky notes will start inside this group.`
+        : "Create an empty group area, then add sticky notes from the group header.";
+      groupModal.classList.add("open");
+      requestAnimationFrame(() => groupName.focus());
+    }
+
+    function openRenameGroupModal(groupId) {
+      const group = board.groups.find(item => item.id === groupId);
+      if (!group) return;
+      board.editingGroupId = groupId;
+      document.getElementById("groupTitle").textContent = "Rename group";
+      document.getElementById("confirmGroup").textContent = "Save group";
+      groupName.value = group.name;
+      groupSummary.textContent = "Update the label shown behind this group of sticky notes.";
+      groupModal.classList.add("open");
+      requestAnimationFrame(() => {
+        groupName.focus();
+        groupName.select();
+      });
+    }
+
+    function saveGroupFromModal() {
+      if (board.editingGroupId) {
+        const group = board.groups.find(item => item.id === board.editingGroupId);
+        if (group) group.name = groupName.value.trim() || "Project Group";
+        board.editingGroupId = null;
+        groupModal.classList.remove("open");
+        render();
+        save();
+        return;
+      }
+
+      let bounds = selectedBounds();
+      if (!bounds) {
+        const center = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+        bounds = {
+          left: center.x - 180,
+          top: center.y - 120,
+          right: center.x + 180,
+          bottom: center.y + 120
+        };
+      }
+      const pad = 34;
+      board.groups.push({
+        id: uid("group"),
+        name: groupName.value.trim() || "Project Group",
+        color: groupColors[board.groups.length % groupColors.length],
+        noteColor: board.color,
+        x: bounds.left - pad,
+        y: bounds.top - pad - 28,
+        width: Math.max(520, bounds.right - bounds.left + pad * 2),
+        height: Math.max(250, bounds.bottom - bounds.top + pad * 2 + 28)
+      });
+      const newGroup = board.groups[board.groups.length - 1];
+      board.notes.forEach(note => {
+        if (board.selectedIds.has(note.id)) note.groupId = newGroup.id;
+      });
+      groupModal.classList.remove("open");
+      render();
+      save();
+    }
+
+    function deleteGroup(groupId) {
+      board.groups = board.groups.filter(group => group.id !== groupId);
+      const removedNoteIds = new Set(board.notes.filter(note => note.groupId === groupId).map(note => note.id));
+      board.notes = board.notes.filter(note => note.groupId !== groupId);
+      board.selectedIds = new Set([...board.selectedIds].filter(id => !removedNoteIds.has(id)));
+      if (board.selectedGroupId === groupId) board.selectedGroupId = null;
+      if (board.dropTargetGroupId === groupId) board.dropTargetGroupId = null;
+      render();
+      save();
+    }
+
+    document.getElementById("addNote").addEventListener("click", () => {
+      const center = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+      createNote(center.x - 105, center.y - 84);
+    });
+
+    document.getElementById("addFlowNode").addEventListener("click", () => {
+      const center = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+      createFlowNode(center.x - 110, center.y - 48);
+    });
+    planningTab.addEventListener("click", () => setActiveMode("board"));
+    flowTab.addEventListener("click", () => setActiveMode("flow"));
+
+    document.getElementById("deleteSelected").addEventListener("click", () => {
+      if (activeMode === "flow") {
+        if (!removeSelectedFlowEdges()) removeSelectedFlowNodes();
+        return;
+      }
+      if (board.selectedGroupId) {
+        deleteGroup(board.selectedGroupId);
+        board.selectedGroupId = null;
+        return;
+      }
+      removeNotes([...board.selectedIds]);
+    });
+    document.getElementById("groupSelected").addEventListener("click", openGroupModal);
+    document.getElementById("zoomIn").addEventListener("click", () => zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.16));
+    document.getElementById("zoomOut").addEventListener("click", () => zoomAt(window.innerWidth / 2, window.innerHeight / 2, 0.86));
+    document.getElementById("resetView").addEventListener("click", () => {
+      if (activeMode === "flow") {
+        flow.view = { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 };
+      } else {
+        board.view = { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 };
+      }
+      applyView();
+      save();
+    });
+    document.getElementById("exportData").addEventListener("click", exportBoardData);
+    document.getElementById("importDataButton").addEventListener("click", () => importData.click());
+    importData.addEventListener("change", () => importBoardData(importData.files[0]));
+
+    document.getElementById("cancelGroup").addEventListener("click", () => {
+      board.editingGroupId = null;
+      groupModal.classList.remove("open");
+    });
+    document.getElementById("confirmGroup").addEventListener("click", saveGroupFromModal);
+    groupName.addEventListener("keydown", event => {
+      if (event.key === "Enter") saveGroupFromModal();
+      if (event.key === "Escape") {
+        board.editingGroupId = null;
+        groupModal.classList.remove("open");
+      }
+    });
+
+    viewport.addEventListener("pointerdown", event => {
+      if (event.target !== viewport && event.target !== world) return;
+      if (activeMode === "flow") {
+        flow.selectedNodeId = null;
+        flow.selectedNodeIds = new Set();
+        flow.selectedEdgeIds = new Set();
+        flow.connectFromId = null;
+        flow.connectTargetId = null;
+        flow.previewPoint = null;
+        render();
+        beginPan(event);
+        return;
+      }
+      if (event.shiftKey) {
+        beginSelection(event);
+      } else {
+        board.selectedIds = new Set();
+        board.selectedGroupId = null;
+        renderNotes();
+        syncGroupStyles();
+        beginPan(event);
+      }
+    });
+
+    app.addEventListener("dblclick", event => {
+      if (event.target.closest(".toolbar") || event.target.closest(".note") || event.target.closest(".flow-node") || event.target.closest(".modal")) return;
+      const point = screenToWorld(event.clientX, event.clientY);
+      if (activeMode === "flow") {
+        createFlowNode(point.x - 110, point.y - 48);
+        return;
+      }
+      createNote(point.x - 105, point.y - 84);
+    });
+
+    app.addEventListener("pointermove", event => {
+      if (activeMode !== "flow" || !flow.connectFromId) return;
+      flow.previewPoint = screenToWorld(event.clientX, event.clientY);
+      flow.connectTargetId = findFlowNodeAt(flow.previewPoint, flow.connectFromId);
+      renderFlow();
+    });
+
+    app.addEventListener("wheel", event => {
+      event.preventDefault();
+      zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.08 : 0.92);
+    }, { passive: false });
+
+    window.addEventListener("keydown", event => {
+      if (event.target.matches("textarea, input")) return;
+      if (event.key === "Delete" || event.key === "Backspace") {
+        if (activeMode === "flow") {
+          if (!removeSelectedFlowEdges()) removeSelectedFlowNodes();
+          return;
+        }
+        if (board.selectedGroupId) {
+          deleteGroup(board.selectedGroupId);
+          board.selectedGroupId = null;
+        } else {
+          removeNotes([...board.selectedIds]);
+        }
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        if (activeMode === "board") openGroupModal();
+      }
+      if (event.key.toLowerCase() === "n") {
+        const center = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+        if (activeMode === "flow") {
+          createFlowNode(center.x - 110, center.y - 48);
+          return;
+        }
+        createNote(center.x - 105, center.y - 84);
+      }
+    });
+
+    window.addEventListener("resize", applyView);
+
+    load();
+    setActiveMode(activeMode);
+  </script>
+</body>
+</html>
