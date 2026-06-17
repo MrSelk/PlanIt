@@ -114,6 +114,45 @@
       background: #ffffff;
     }
 
+    .history-controls {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 21;
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(35, 40, 49, 0.74);
+      box-shadow: 0 12px 34px rgba(4, 8, 14, 0.2);
+      backdrop-filter: blur(12px);
+    }
+
+    .history-controls button {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      background: rgba(48, 55, 67, 0.86);
+      color: var(--ink);
+      border: 1px solid rgba(226, 232, 240, 0.12);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .history-controls button:hover:not(:disabled) {
+      background: #3a4350;
+    }
+
+    .history-controls button:disabled {
+      opacity: 0.34;
+      cursor: default;
+    }
+
     .mode-button.active {
       background: #dce6f3;
       color: #111827;
@@ -360,7 +399,9 @@
     .note {
       position: absolute;
       width: 210px;
-      min-height: 168px;
+      height: 168px;
+      min-width: 150px;
+      min-height: 120px;
       padding: 44px 14px 14px;
       border: 1px solid rgba(20, 24, 30, 0.13);
       border-radius: 6px;
@@ -431,6 +472,9 @@
       font-size: 17px;
       font-weight: 650;
       user-select: text;
+      height: 100%;
+      overflow: auto;
+      overscroll-behavior: contain;
     }
 
     .checklist {
@@ -440,6 +484,57 @@
       flex-direction: column;
       gap: 7px;
       min-height: 106px;
+      max-height: 100%;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+
+    .note-resize-handle {
+      position: absolute;
+      z-index: 4;
+      opacity: 0;
+      background: transparent;
+    }
+
+    .note-resize-handle.edge-left,
+    .note-resize-handle.edge-right {
+      top: 28px;
+      bottom: 0;
+      width: 18px;
+      cursor: ew-resize;
+    }
+
+    .note-resize-handle.edge-left {
+      left: 0;
+    }
+
+    .note-resize-handle.edge-right {
+      right: 0;
+    }
+
+    .note-resize-handle.edge-bottom {
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 18px;
+      cursor: ns-resize;
+    }
+
+    .note-resize-handle.corner-bottom-left,
+    .note-resize-handle.corner-bottom-right {
+      bottom: 0;
+      width: 30px;
+      height: 30px;
+    }
+
+    .note-resize-handle.corner-bottom-left {
+      left: 0;
+      cursor: nesw-resize;
+    }
+
+    .note-resize-handle.corner-bottom-right {
+      right: 0;
+      cursor: nwse-resize;
     }
 
     .check-item {
@@ -732,6 +827,10 @@
       <button id="exportData" title="Download a backup of this board">Backup</button>
       <button id="importDataButton" title="Restore a board backup">Restore</button>
     </section>
+    <section class="history-controls" aria-label="History">
+      <button id="undoAction" title="Undo (Ctrl+Z / Cmd+Z)" aria-label="Undo">&larr;</button>
+      <button id="redoAction" title="Redo (Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z)" aria-label="Redo">&rarr;</button>
+    </section>
     <input id="importData" type="file" accept="application/json,.json" hidden>
 
     <div id="viewport" class="viewport">
@@ -782,6 +881,8 @@
     const flowLineTools = document.getElementById("flowLineTools");
     const flowAlignTools = document.getElementById("flowAlignTools");
     const importData = document.getElementById("importData");
+    const undoAction = document.getElementById("undoAction");
+    const redoAction = document.getElementById("redoAction");
     const planningTab = document.getElementById("planningTab");
     const flowTab = document.getElementById("flowTab");
     const hint = document.getElementById("hint");
@@ -814,9 +915,31 @@
     let activeMode = "board";
 
     const storageKey = "project-board-v1";
+    const defaultNoteWidth = 210;
+    const defaultNoteHeight = 168;
+    const minNoteWidth = 150;
+    const minNoteHeight = 120;
+    const historyLimit = 80;
+    let undoStack = [];
+    let redoStack = [];
+    let lastSavedSnapshot = null;
+    let lastHistoryKey = "";
+    let isRestoringHistory = false;
+
+    function noteWidth(note) {
+      return Math.max(minNoteWidth, Number(note.width) || defaultNoteWidth);
+    }
+
+    function noteHeight(note) {
+      return Math.max(minNoteHeight, Number(note.height) || defaultNoteHeight);
+    }
 
     function uid(prefix) {
       return `${prefix}-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+    }
+
+    function cloneData(data) {
+      return JSON.parse(JSON.stringify(data));
     }
 
     function getSaveData() {
@@ -835,6 +958,28 @@
       };
     }
 
+    function getHistoryKey(data) {
+      const historyData = cloneData(data);
+      delete historyData.view;
+      delete historyData.activeMode;
+      if (historyData.flow) delete historyData.flow.view;
+      return JSON.stringify(historyData);
+    }
+
+    function updateHistoryButtons() {
+      undoAction.disabled = undoStack.length === 0;
+      redoAction.disabled = redoStack.length === 0;
+    }
+
+    function resetHistoryBaseline() {
+      const current = cloneData(getSaveData());
+      lastSavedSnapshot = current;
+      lastHistoryKey = getHistoryKey(current);
+      undoStack = [];
+      redoStack = [];
+      updateHistoryButtons();
+    }
+
     function applySavedData(data) {
       board.notes = Array.isArray(data.notes) ? data.notes : [];
       board.groups = Array.isArray(data.groups) ? data.groups : [];
@@ -842,6 +987,8 @@
         note.bold = Boolean(note.bold);
         note.italic = Boolean(note.italic);
         note.checklist = Boolean(note.checklist);
+        note.width = noteWidth(note);
+        note.height = noteHeight(note);
         if (note.checklist && !Array.isArray(note.items)) {
           note.items = (note.text || "").split("\n").filter(Boolean).map(text => ({ text, done: false }));
         }
@@ -890,7 +1037,17 @@
     }
 
     function save() {
-      localStorage.setItem(storageKey, JSON.stringify(getSaveData()));
+      const current = cloneData(getSaveData());
+      const currentHistoryKey = getHistoryKey(current);
+      if (!isRestoringHistory && lastSavedSnapshot && currentHistoryKey !== lastHistoryKey) {
+        undoStack.push(cloneData(lastSavedSnapshot));
+        if (undoStack.length > historyLimit) undoStack.shift();
+        redoStack = [];
+      }
+      localStorage.setItem(storageKey, JSON.stringify(current));
+      lastSavedSnapshot = cloneData(current);
+      lastHistoryKey = currentHistoryKey;
+      updateHistoryButtons();
     }
 
     function load() {
@@ -901,6 +1058,32 @@
       } catch {
         localStorage.removeItem(storageKey);
       }
+    }
+
+    function restoreHistoryState(data) {
+      isRestoringHistory = true;
+      applySavedData(cloneData(data));
+      const current = cloneData(getSaveData());
+      localStorage.setItem(storageKey, JSON.stringify(current));
+      lastSavedSnapshot = cloneData(current);
+      lastHistoryKey = getHistoryKey(current);
+      isRestoringHistory = false;
+      setActiveMode(activeMode);
+      updateHistoryButtons();
+    }
+
+    function undo() {
+      if (!undoStack.length) return;
+      redoStack.push(cloneData(getSaveData()));
+      if (redoStack.length > historyLimit) redoStack.shift();
+      restoreHistoryState(undoStack.pop());
+    }
+
+    function redo() {
+      if (!redoStack.length) return;
+      undoStack.push(cloneData(getSaveData()));
+      if (undoStack.length > historyLimit) undoStack.shift();
+      restoreHistoryState(redoStack.pop());
     }
 
     function exportBoardData() {
@@ -1061,8 +1244,8 @@
         }
         const left = Math.min(...members.map(note => note.x));
         const top = Math.min(...members.map(note => note.y));
-        const right = Math.max(...members.map(note => note.x + 210));
-        const bottom = Math.max(...members.map(note => note.y + 168));
+        const right = Math.max(...members.map(note => note.x + noteWidth(note)));
+        const bottom = Math.max(...members.map(note => note.y + noteHeight(note)));
         group.x = left - pad;
         group.y = top - header;
         group.width = Math.max(520, right - left + pad * 2);
@@ -1072,7 +1255,7 @@
 
     function findDropTargetGroup(notes) {
       const candidates = notes
-        .map(note => ({ x: note.x + 105, y: note.y + 84 }))
+        .map(note => ({ x: note.x + noteWidth(note) / 2, y: note.y + noteHeight(note) / 2 }))
         .filter(Boolean);
       for (let index = board.groups.length - 1; index >= 0; index -= 1) {
         const group = board.groups[index];
@@ -1177,6 +1360,10 @@
         div.dataset.id = note.id;
         div.style.left = `${note.x}px`;
         div.style.top = `${note.y}px`;
+        note.width = noteWidth(note);
+        note.height = noteHeight(note);
+        div.style.width = `${note.width}px`;
+        div.style.height = `${note.height}px`;
         div.style.background = note.color;
         div.style.zIndex = note.z || 1;
         const group = board.groups.find(item => item.id === note.groupId);
@@ -1328,6 +1515,19 @@
           tag.append(dot, name);
           div.appendChild(tag);
         }
+        [
+          { edge: "left", className: "edge-left" },
+          { edge: "right", className: "edge-right" },
+          { edge: "bottom", className: "edge-bottom" },
+          { edge: "bottom-left", className: "corner-bottom-left" },
+          { edge: "bottom-right", className: "corner-bottom-right" }
+        ].forEach(handle => {
+          const resizeHandle = document.createElement("div");
+          resizeHandle.className = `note-resize-handle ${handle.className}`;
+          resizeHandle.setAttribute("aria-hidden", "true");
+          resizeHandle.addEventListener("pointerdown", event => beginNoteResize(event, note.id, handle.edge));
+          div.appendChild(resizeHandle);
+        });
         div.addEventListener("pointerdown", event => beginNoteDrag(event, note.id));
         world.appendChild(div);
       });
@@ -1708,6 +1908,8 @@
         italic: false,
         checklist: false,
         items: [],
+        width: defaultNoteWidth,
+        height: defaultNoteHeight,
         z: board.nextZ++
       };
       board.notes.push(note);
@@ -1735,6 +1937,81 @@
       board.selectedIds = new Set([...board.selectedIds].filter(id => !idSet.has(id)));
       render();
       save();
+    }
+
+    function beginNoteResize(event, id, edge) {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const note = board.notes.find(item => item.id === id);
+      if (!note) return;
+      board.selectedIds = new Set([id]);
+      board.selectedGroupId = null;
+      bringNotesToFront([id]);
+      syncSelectionStyles();
+      syncGroupStyles();
+
+      const start = screenToWorld(event.clientX, event.clientY);
+      const original = {
+        x: note.x,
+        y: note.y,
+        width: noteWidth(note),
+        height: noteHeight(note)
+      };
+      board.mode = "resize-note";
+      const resizeCursor = getComputedStyle(event.currentTarget).cursor;
+      document.body.style.cursor = resizeCursor;
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      const move = moveEvent => {
+        const now = screenToWorld(moveEvent.clientX, moveEvent.clientY);
+        const dx = now.x - start.x;
+        const dy = now.y - start.y;
+
+        if (edge.includes("left")) {
+          const nextWidth = Math.max(minNoteWidth, original.width - dx);
+          note.width = nextWidth;
+          note.x = original.x + original.width - nextWidth;
+        }
+        if (edge.includes("right")) {
+          note.width = Math.max(minNoteWidth, original.width + dx);
+        }
+        if (edge.includes("bottom")) {
+          note.height = Math.max(minNoteHeight, original.height + dy);
+        }
+
+        const noteNode = document.querySelector(`.note[data-id="${note.id}"]`);
+        if (noteNode) {
+          noteNode.style.left = `${note.x}px`;
+          noteNode.style.top = `${note.y}px`;
+          noteNode.style.width = `${note.width}px`;
+          noteNode.style.height = `${note.height}px`;
+          noteNode.style.zIndex = note.z || 1;
+        }
+
+        fitGroupsToMembers();
+        board.groups.forEach(group => {
+          const node = document.querySelector(`.group[data-id="${group.id}"]`);
+          if (!node) return;
+          node.style.left = `${group.x}px`;
+          node.style.top = `${group.y}px`;
+          node.style.width = `${group.width}px`;
+          node.style.height = `${group.height}px`;
+        });
+      };
+
+      const up = () => {
+        board.mode = null;
+        document.body.style.cursor = "";
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        fitGroupsToMembers();
+        render();
+        save();
+      };
+
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
     }
 
     function beginNoteDrag(event, id) {
@@ -1915,7 +2192,7 @@
           bottom: Math.max(a.y, b.y)
         };
         board.selectedIds = new Set(board.notes
-          .filter(note => note.x < box.right && note.x + 210 > box.left && note.y < box.bottom && note.y + 168 > box.top)
+          .filter(note => note.x < box.right && note.x + noteWidth(note) > box.left && note.y < box.bottom && note.y + noteHeight(note) > box.top)
           .map(note => note.id));
         renderNotes();
       };
@@ -1950,8 +2227,8 @@
       if (!selected.length) return null;
       const left = Math.min(...selected.map(note => note.x));
       const top = Math.min(...selected.map(note => note.y));
-      const right = Math.max(...selected.map(note => note.x + 210));
-      const bottom = Math.max(...selected.map(note => note.y + 168));
+      const right = Math.max(...selected.map(note => note.x + noteWidth(note)));
+      const bottom = Math.max(...selected.map(note => note.y + noteHeight(note)));
       return { left, top, right, bottom };
     }
 
@@ -2073,6 +2350,8 @@
     document.getElementById("exportData").addEventListener("click", exportBoardData);
     document.getElementById("importDataButton").addEventListener("click", () => importData.click());
     importData.addEventListener("change", () => importBoardData(importData.files[0]));
+    undoAction.addEventListener("click", undo);
+    redoAction.addEventListener("click", redo);
 
     document.getElementById("cancelGroup").addEventListener("click", () => {
       board.editingGroupId = null;
@@ -2129,11 +2408,22 @@
     });
 
     app.addEventListener("wheel", event => {
+      if (event.target.closest(".note textarea, .note .checklist")) return;
       event.preventDefault();
       zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.08 : 0.92);
     }, { passive: false });
 
     window.addEventListener("keydown", event => {
+      const key = event.key.toLowerCase();
+      const usesCommand = event.ctrlKey || event.metaKey;
+      const isUndo = usesCommand && key === "z" && !event.shiftKey;
+      const isRedo = usesCommand && (key === "y" || (key === "z" && event.shiftKey));
+      if (isUndo || isRedo) {
+        event.preventDefault();
+        if (isUndo) undo();
+        if (isRedo) redo();
+        return;
+      }
       if (event.target.matches("textarea, input")) return;
       if (event.key === "Delete" || event.key === "Backspace") {
         if (activeMode === "flow") {
@@ -2164,6 +2454,7 @@
     window.addEventListener("resize", applyView);
 
     load();
+    resetHistoryBaseline();
     setActiveMode(activeMode);
   </script>
 </body>
