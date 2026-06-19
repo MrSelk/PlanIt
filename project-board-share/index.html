@@ -314,7 +314,7 @@
       background: #2d343f;
       color: var(--ink);
       box-shadow: 0 16px 42px rgba(4, 8, 14, 0.28);
-      cursor: move;
+      cursor: grab;
       user-select: none;
       isolation: isolate;
     }
@@ -406,11 +406,16 @@
       border: 1px solid rgba(20, 24, 30, 0.13);
       border-radius: 6px;
       box-shadow: 0 10px 24px rgba(31, 37, 45, 0.15);
-      cursor: move;
+      cursor: grab;
       user-select: none;
       overflow: hidden;
       isolation: isolate;
       transform-origin: center;
+    }
+
+    body.dragging-item,
+    body.dragging-item * {
+      cursor: grabbing !important;
     }
 
     .note::before {
@@ -449,6 +454,33 @@
     .note-tool:hover,
     .note-tool.active {
       background: rgba(255, 255, 255, 0.82);
+    }
+
+    .note-delete {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: rgba(31, 41, 55, 0.62);
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1;
+      opacity: 0.68;
+    }
+
+    .note:hover .note-delete,
+    .note-delete:focus-visible {
+      opacity: 1;
+    }
+
+    .note-delete:hover {
+      background: rgba(31, 41, 55, 0.14);
+      color: #111827;
     }
 
     .note.selected {
@@ -500,7 +532,7 @@
     .note-resize-handle.edge-right {
       top: 28px;
       bottom: 0;
-      width: 18px;
+      width: 26px;
       cursor: ew-resize;
     }
 
@@ -516,15 +548,15 @@
       left: 0;
       right: 0;
       bottom: 0;
-      height: 18px;
+      height: 26px;
       cursor: ns-resize;
     }
 
     .note-resize-handle.corner-bottom-left,
     .note-resize-handle.corner-bottom-right {
       bottom: 0;
-      width: 30px;
-      height: 30px;
+      width: 40px;
+      height: 40px;
     }
 
     .note-resize-handle.corner-bottom-left {
@@ -607,7 +639,7 @@
     .group {
       position: absolute;
       min-width: 520px;
-      min-height: 220px;
+      min-height: 250px;
       padding-top: 44px;
       border: 2px solid rgba(38, 47, 58, 0.24);
       border-radius: 8px;
@@ -615,6 +647,67 @@
       box-shadow: 0 16px 42px rgba(31, 37, 45, 0.09) inset;
       pointer-events: auto;
       cursor: move;
+    }
+
+    .group-resize-handle {
+      position: absolute;
+      z-index: 5;
+      opacity: 0;
+      background: transparent;
+    }
+
+    .group-resize-handle.edge-left,
+    .group-resize-handle.edge-right {
+      top: 22px;
+      bottom: 22px;
+      width: 22px;
+      cursor: ew-resize;
+    }
+
+    .group-resize-handle.edge-left { left: 0; }
+    .group-resize-handle.edge-right { right: 0; }
+
+    .group-resize-handle.edge-top,
+    .group-resize-handle.edge-bottom {
+      left: 22px;
+      right: 22px;
+      height: 22px;
+      cursor: ns-resize;
+    }
+
+    .group-resize-handle.edge-top { top: 0; }
+    .group-resize-handle.edge-bottom { bottom: 0; }
+
+    .group-resize-handle.corner-top-left,
+    .group-resize-handle.corner-top-right,
+    .group-resize-handle.corner-bottom-left,
+    .group-resize-handle.corner-bottom-right {
+      width: 36px;
+      height: 36px;
+    }
+
+    .group-resize-handle.corner-top-left {
+      top: 0;
+      left: 0;
+      cursor: nwse-resize;
+    }
+
+    .group-resize-handle.corner-top-right {
+      top: 0;
+      right: 0;
+      cursor: nesw-resize;
+    }
+
+    .group-resize-handle.corner-bottom-left {
+      bottom: 0;
+      left: 0;
+      cursor: nesw-resize;
+    }
+
+    .group-resize-handle.corner-bottom-right {
+      right: 0;
+      bottom: 0;
+      cursor: nwse-resize;
     }
 
     .group.selected {
@@ -649,6 +742,7 @@
 
     .group-actions {
       position: absolute;
+      z-index: 6;
       top: 8px;
       right: 10px;
       display: flex;
@@ -919,6 +1013,8 @@
     const defaultNoteHeight = 168;
     const minNoteWidth = 150;
     const minNoteHeight = 120;
+    const minGroupWidth = 520;
+    const minGroupHeight = 250;
     const historyLimit = 80;
     let undoStack = [];
     let redoStack = [];
@@ -996,6 +1092,8 @@
       board.groups.forEach((group, index) => {
         group.color = group.color || groupColors[index % groupColors.length];
         group.noteColor = group.noteColor || colors[index % colors.length].value;
+        group.width = Math.max(minGroupWidth, Number(group.width) || minGroupWidth);
+        group.height = Math.max(minGroupHeight, Number(group.height) || minGroupHeight);
       });
       board.color = data.color || colors[0].value;
       board.view = data.view || board.view;
@@ -1061,8 +1159,14 @@
     }
 
     function restoreHistoryState(data) {
+      const preservedBoardView = cloneData(board.view);
+      const preservedFlowView = cloneData(flow.view);
+      const preservedActiveMode = activeMode;
       isRestoringHistory = true;
       applySavedData(cloneData(data));
+      board.view = preservedBoardView;
+      flow.view = preservedFlowView;
+      activeMode = preservedActiveMode;
       const current = cloneData(getSaveData());
       localStorage.setItem(storageKey, JSON.stringify(current));
       lastSavedSnapshot = cloneData(current);
@@ -1236,20 +1340,22 @@
       const pad = 28;
       const header = 58;
       board.groups.forEach(group => {
+        group.width = Math.max(minGroupWidth, Number(group.width) || minGroupWidth);
+        group.height = Math.max(minGroupHeight, Number(group.height) || minGroupHeight);
         const members = board.notes.filter(note => note.groupId === group.id && !excludeIds.has(note.id));
-        if (!members.length) {
-          group.width = Math.max(520, group.width || 520);
-          group.height = Math.max(250, group.height || 250);
-          return;
-        }
+        if (!members.length) return;
         const left = Math.min(...members.map(note => note.x));
         const top = Math.min(...members.map(note => note.y));
         const right = Math.max(...members.map(note => note.x + noteWidth(note)));
         const bottom = Math.max(...members.map(note => note.y + noteHeight(note)));
-        group.x = left - pad;
-        group.y = top - header;
-        group.width = Math.max(520, right - left + pad * 2);
-        group.height = Math.max(250, bottom - top + header + pad);
+        const nextLeft = Math.min(group.x, left - pad);
+        const nextTop = Math.min(group.y, top - header);
+        const nextRight = Math.max(group.x + group.width, right + pad);
+        const nextBottom = Math.max(group.y + group.height, bottom + pad);
+        group.x = nextLeft;
+        group.y = nextTop;
+        group.width = Math.max(minGroupWidth, nextRight - nextLeft);
+        group.height = Math.max(minGroupHeight, nextBottom - nextTop);
       });
     }
 
@@ -1348,6 +1454,22 @@
 
         actions.append(rename, groupPalette, add, remove);
         div.append(title, actions);
+        [
+          { edge: "left", className: "edge-left" },
+          { edge: "right", className: "edge-right" },
+          { edge: "top", className: "edge-top" },
+          { edge: "bottom", className: "edge-bottom" },
+          { edge: "top-left", className: "corner-top-left" },
+          { edge: "top-right", className: "corner-top-right" },
+          { edge: "bottom-left", className: "corner-bottom-left" },
+          { edge: "bottom-right", className: "corner-bottom-right" }
+        ].forEach(handle => {
+          const resizeHandle = document.createElement("div");
+          resizeHandle.className = `group-resize-handle ${handle.className}`;
+          resizeHandle.setAttribute("aria-hidden", "true");
+          resizeHandle.addEventListener("pointerdown", event => beginGroupResize(event, group.id, handle.edge));
+          div.appendChild(resizeHandle);
+        });
         world.prepend(div);
       });
     }
@@ -1422,7 +1544,19 @@
           save();
         });
 
-        tools.append(bold, italic, checklist);
+        const remove = document.createElement("button");
+        remove.className = "note-delete";
+        remove.type = "button";
+        remove.title = "Delete note";
+        remove.setAttribute("aria-label", "Delete note");
+        remove.textContent = "\u00d7";
+        remove.addEventListener("pointerdown", event => event.stopPropagation());
+        remove.addEventListener("click", event => {
+          event.stopPropagation();
+          removeNotes([note.id]);
+        });
+
+        tools.append(bold, italic, checklist, remove);
         div.appendChild(tools);
 
         if (note.checklist) {
@@ -1807,6 +1941,7 @@
       const start = screenToWorld(event.clientX, event.clientY);
       const originals = selectedNodes.map(item => ({ id: item.id, x: item.x, y: item.y }));
       board.mode = "drag-flow-node";
+      document.body.classList.add("dragging-item");
       event.currentTarget.setPointerCapture(event.pointerId);
 
       const move = moveEvent => {
@@ -1830,6 +1965,7 @@
 
       const up = () => {
         board.mode = null;
+        document.body.classList.remove("dragging-item");
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
         save();
@@ -2036,6 +2172,7 @@
       const starts = selectedNotes.map(item => ({ id: item.id, x: item.x, y: item.y }));
       const originalGroupIds = new Map(selectedNotes.map(item => [item.id, item.groupId || null]));
       board.mode = "drag-note";
+      document.body.classList.add("dragging-item");
       event.currentTarget.setPointerCapture(event.pointerId);
 
       const move = moveEvent => {
@@ -2069,6 +2206,7 @@
 
       const up = () => {
         board.mode = null;
+        document.body.classList.remove("dragging-item");
         const targetGroupId = board.dropTargetGroupId;
         selectedNotes.forEach(item => {
           if (targetGroupId) {
@@ -2090,7 +2228,7 @@
     }
 
     function beginGroupDrag(event, groupId) {
-      if (event.button !== 0 || event.target.closest(".group-actions")) return;
+      if (event.button !== 0 || event.target.closest(".group-actions, .group-resize-handle")) return;
       event.stopPropagation();
       const group = board.groups.find(item => item.id === groupId);
       if (!group) return;
@@ -2135,6 +2273,89 @@
         board.mode = null;
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
+        save();
+      };
+
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+    }
+
+    function beginGroupResize(event, groupId, edge) {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const group = board.groups.find(item => item.id === groupId);
+      if (!group) return;
+      board.selectedIds = new Set();
+      board.selectedGroupId = groupId;
+      syncSelectionStyles();
+      syncGroupStyles();
+
+      const pad = 28;
+      const header = 58;
+      const members = board.notes.filter(note => note.groupId === groupId);
+      const contentBounds = members.length ? {
+        left: Math.min(...members.map(note => note.x)) - pad,
+        top: Math.min(...members.map(note => note.y)) - header,
+        right: Math.max(...members.map(note => note.x + noteWidth(note))) + pad,
+        bottom: Math.max(...members.map(note => note.y + noteHeight(note))) + pad
+      } : null;
+      const start = screenToWorld(event.clientX, event.clientY);
+      const original = {
+        left: group.x,
+        top: group.y,
+        right: group.x + group.width,
+        bottom: group.y + group.height
+      };
+      board.mode = "resize-group";
+      document.body.style.cursor = getComputedStyle(event.currentTarget).cursor;
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      const move = moveEvent => {
+        const now = screenToWorld(moveEvent.clientX, moveEvent.clientY);
+        const dx = now.x - start.x;
+        const dy = now.y - start.y;
+        let left = original.left;
+        let top = original.top;
+        let right = original.right;
+        let bottom = original.bottom;
+
+        if (edge.includes("left")) {
+          left = Math.min(original.left + dx, right - minGroupWidth);
+          if (contentBounds) left = Math.min(left, contentBounds.left);
+        }
+        if (edge.includes("right")) {
+          right = Math.max(original.right + dx, left + minGroupWidth);
+          if (contentBounds) right = Math.max(right, contentBounds.right);
+        }
+        if (edge.includes("top")) {
+          top = Math.min(original.top + dy, bottom - minGroupHeight);
+          if (contentBounds) top = Math.min(top, contentBounds.top);
+        }
+        if (edge.includes("bottom")) {
+          bottom = Math.max(original.bottom + dy, top + minGroupHeight);
+          if (contentBounds) bottom = Math.max(bottom, contentBounds.bottom);
+        }
+
+        group.x = left;
+        group.y = top;
+        group.width = right - left;
+        group.height = bottom - top;
+        const groupNode = document.querySelector(`.group[data-id="${group.id}"]`);
+        if (groupNode) {
+          groupNode.style.left = `${group.x}px`;
+          groupNode.style.top = `${group.y}px`;
+          groupNode.style.width = `${group.width}px`;
+          groupNode.style.height = `${group.height}px`;
+        }
+      };
+
+      const up = () => {
+        board.mode = null;
+        document.body.style.cursor = "";
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        render();
         save();
       };
 
