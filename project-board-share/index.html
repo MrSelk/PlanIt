@@ -307,7 +307,9 @@
     .flow-node {
       position: absolute;
       width: 220px;
-      min-height: 96px;
+      height: 102px;
+      min-width: 150px;
+      min-height: 76px;
       padding: 14px 12px;
       border-radius: 18px;
       border: 1px solid rgba(226, 232, 240, 0.24);
@@ -317,6 +319,7 @@
       cursor: grab;
       user-select: none;
       isolation: isolate;
+      overflow: hidden;
     }
 
     .flow-node.selected,
@@ -337,7 +340,8 @@
 
     .flow-node textarea {
       width: 100%;
-      min-height: 68px;
+      height: 100%;
+      min-height: 0;
       border: 0;
       resize: none;
       outline: none;
@@ -347,6 +351,49 @@
       line-height: 1.35;
       font-weight: 700;
       user-select: text;
+    }
+
+    .flow-node-resize-handle {
+      position: absolute;
+      z-index: 4;
+      opacity: 0;
+      background: transparent;
+    }
+
+    .flow-node-resize-handle.edge-left,
+    .flow-node-resize-handle.edge-right {
+      top: 0;
+      bottom: 0;
+      width: 26px;
+      cursor: ew-resize;
+    }
+
+    .flow-node-resize-handle.edge-left { left: 0; }
+    .flow-node-resize-handle.edge-right { right: 0; }
+
+    .flow-node-resize-handle.edge-bottom {
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 26px;
+      cursor: ns-resize;
+    }
+
+    .flow-node-resize-handle.corner-bottom-left,
+    .flow-node-resize-handle.corner-bottom-right {
+      bottom: 0;
+      width: 40px;
+      height: 40px;
+    }
+
+    .flow-node-resize-handle.corner-bottom-left {
+      left: 0;
+      cursor: nesw-resize;
+    }
+
+    .flow-node-resize-handle.corner-bottom-right {
+      right: 0;
+      cursor: nwse-resize;
     }
 
     .flow-node.align-center textarea,
@@ -402,7 +449,7 @@
       height: 168px;
       min-width: 150px;
       min-height: 120px;
-      padding: 44px 14px 14px;
+      padding: 22px 14px 14px;
       border: 1px solid rgba(20, 24, 30, 0.13);
       border-radius: 6px;
       box-shadow: 0 10px 24px rgba(31, 37, 45, 0.15);
@@ -411,6 +458,11 @@
       overflow: hidden;
       isolation: isolate;
       transform-origin: center;
+      transition: padding 140ms ease;
+    }
+
+    .note:focus-within {
+      padding-top: 70px;
     }
 
     body.dragging-item,
@@ -422,11 +474,16 @@
       content: "";
       position: absolute;
       inset: 0 0 auto 0;
-      height: 26px;
+      height: 18px;
       border-radius: 6px 6px 0 0;
       background: rgba(255,255,255,0.22);
       z-index: 0;
       pointer-events: none;
+      transition: height 140ms ease;
+    }
+
+    .note:focus-within::before {
+      height: 54px;
     }
 
     .note-tools {
@@ -438,6 +495,17 @@
       display: flex;
       gap: 5px;
       align-items: center;
+      flex-wrap: wrap;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-3px);
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .note:focus-within .note-tools {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
     }
 
     .note-tool {
@@ -451,8 +519,35 @@
       font-weight: 850;
     }
 
+    .note-tool.strike {
+      text-decoration: line-through;
+    }
+
+    .highlight-tool {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border-radius: 5px;
+      border: 1px solid rgba(31, 37, 45, 0.14);
+      background: rgba(255, 255, 255, 0.58);
+      color: #1f2937;
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .highlight-tool.flash {
+      animation: highlightFlash 520ms ease;
+    }
+
+    @keyframes highlightFlash {
+      0% { box-shadow: 0 0 0 0 rgba(31, 41, 55, 0.3); transform: scale(1); }
+      42% { box-shadow: 0 0 0 5px rgba(31, 41, 55, 0); transform: scale(1.08); }
+      100% { box-shadow: 0 0 0 0 rgba(31, 41, 55, 0); transform: scale(1); }
+    }
+
     .note-tool:hover,
-    .note-tool.active {
+    .note-tool.active,
+    .highlight-tool:hover {
       background: rgba(255, 255, 255, 0.82);
     }
 
@@ -489,11 +584,12 @@
       box-shadow: 0 16px 34px rgba(31, 37, 45, 0.22);
     }
 
-    .note textarea {
+    .note textarea,
+    .note-editor {
       position: relative;
       z-index: 1;
       width: 100%;
-      min-height: 106px;
+      min-height: 78px;
       border: 0;
       padding: 0;
       resize: none;
@@ -507,6 +603,61 @@
       height: 100%;
       overflow: auto;
       overscroll-behavior: contain;
+    }
+
+    .note.has-group .note-editor,
+    .note.has-group .checklist {
+      height: calc(100% - 30px);
+      max-height: calc(100% - 30px);
+      min-height: 0;
+    }
+
+    .note-editor {
+      white-space: pre-wrap;
+      cursor: text;
+    }
+
+    .note-editor:empty::before {
+      content: attr(data-placeholder);
+      color: rgba(31, 41, 55, 0.52);
+    }
+
+    .note-editor ul,
+    .note-editor ol {
+      margin: 0;
+      padding-left: 22px;
+    }
+
+    .note-editor li {
+      margin: 2px 0;
+    }
+
+    .rich-check-item {
+      display: block;
+      position: relative;
+      min-height: 1.32em;
+      padding-left: 23px;
+    }
+
+    .rich-check-token {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .rich-check-token:hover {
+      background: rgba(31, 41, 55, 0.12);
+    }
+
+    .rich-check-item.checked {
+      color: rgba(31, 41, 55, 0.72);
     }
 
     .checklist {
@@ -532,40 +683,40 @@
     .note-resize-handle.edge-right {
       top: 28px;
       bottom: 0;
-      width: 26px;
+      width: 12px;
       cursor: ew-resize;
     }
 
     .note-resize-handle.edge-left {
-      left: 0;
+      left: -4px;
     }
 
     .note-resize-handle.edge-right {
-      right: 0;
+      right: -4px;
     }
 
     .note-resize-handle.edge-bottom {
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 26px;
+      left: 12px;
+      right: 12px;
+      bottom: -4px;
+      height: 14px;
       cursor: ns-resize;
     }
 
     .note-resize-handle.corner-bottom-left,
     .note-resize-handle.corner-bottom-right {
-      bottom: 0;
-      width: 40px;
-      height: 40px;
+      bottom: -4px;
+      width: 24px;
+      height: 24px;
     }
 
     .note-resize-handle.corner-bottom-left {
-      left: 0;
+      left: -4px;
       cursor: nesw-resize;
     }
 
     .note-resize-handle.corner-bottom-right {
-      right: 0;
+      right: -4px;
       cursor: nwse-resize;
     }
 
@@ -611,7 +762,7 @@
       left: 10px;
       right: 10px;
       bottom: 8px;
-      z-index: 2;
+      z-index: 3;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -620,6 +771,8 @@
       font-size: 12px;
       font-weight: 800;
       pointer-events: none;
+      padding-top: 6px;
+      background: linear-gradient(to top, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0));
     }
 
     .note-group-dot {
@@ -961,6 +1114,14 @@
 
     const groupColors = ["#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed", "#0891b2", "#be123c"];
     const lineColors = ["#e2e8f0", "#60a5fa", "#34d399", "#f59e0b", "#f472b6", "#a78bfa", "#f87171"];
+    const highlightColors = [
+      { name: "Highlight", value: "" },
+      { name: "Yellow", value: "#fff176" },
+      { name: "Green", value: "#bbf7d0" },
+      { name: "Blue", value: "#bfdbfe" },
+      { name: "Pink", value: "#fbcfe8" },
+      { name: "Clear", value: "transparent" }
+    ];
 
     const app = document.getElementById("app");
     const viewport = document.getElementById("viewport");
@@ -1015,6 +1176,10 @@
     const minNoteHeight = 120;
     const minGroupWidth = 520;
     const minGroupHeight = 250;
+    const defaultFlowNodeWidth = 220;
+    const defaultFlowNodeHeight = 102;
+    const minFlowNodeWidth = 150;
+    const minFlowNodeHeight = 76;
     const historyLimit = 80;
     let undoStack = [];
     let redoStack = [];
@@ -1030,12 +1195,364 @@
       return Math.max(minNoteHeight, Number(note.height) || defaultNoteHeight);
     }
 
+    function flowNodeWidth(node) {
+      return Math.max(minFlowNodeWidth, Number(node.width) || defaultFlowNodeWidth);
+    }
+
+    function flowNodeHeight(node) {
+      return Math.max(minFlowNodeHeight, Number(node.height) || defaultFlowNodeHeight);
+    }
+
     function uid(prefix) {
       return `${prefix}-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
     }
 
     function cloneData(data) {
       return JSON.parse(JSON.stringify(data));
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function plainTextToHtml(text) {
+      if (!text) return "";
+      return escapeHtml(text)
+        .split("\n")
+        .map(line => `<div>${line || "<br>"}</div>`)
+        .join("");
+    }
+
+    function richTextToPlainText(editor) {
+      return (editor.innerText || "")
+        .replace(/\u00a0/g, " ")
+        .replace(/\n$/, "");
+    }
+
+    function sanitizeRichHtml(html) {
+      const allowed = new Set(["B", "STRONG", "I", "EM", "S", "STRIKE", "SPAN", "MARK", "UL", "OL", "LI", "DIV", "P", "BR"]);
+      const allowedClasses = new Set(["rich-check-item", "rich-check-token", "checked"]);
+      const template = document.createElement("template");
+      template.innerHTML = String(html || "");
+      const clean = document.createElement("div");
+
+      const copyChildren = (source, target) => {
+        source.childNodes.forEach(child => {
+          if (child.nodeType === Node.TEXT_NODE) {
+            target.appendChild(document.createTextNode(child.textContent));
+            return;
+          }
+          if (child.nodeType !== Node.ELEMENT_NODE) return;
+          if (!allowed.has(child.nodeName)) {
+            copyChildren(child, target);
+            return;
+          }
+
+          const next = document.createElement(child.nodeName.toLowerCase());
+          const background = child.style?.backgroundColor;
+          if (background) next.style.backgroundColor = background;
+          const listStyle = child.style?.listStyleType;
+          if ((child.nodeName === "OL" || child.nodeName === "UL") && listStyle) next.style.listStyleType = listStyle;
+          const classes = [...child.classList].filter(name => allowedClasses.has(name));
+          if (classes.length) next.className = classes.join(" ");
+          if (classes.includes("rich-check-token")) next.contentEditable = "false";
+          copyChildren(child, next);
+          target.appendChild(next);
+        });
+      };
+
+      copyChildren(template.content, clean);
+      return clean.innerHTML;
+    }
+
+    function normalizeNoteHtml(note) {
+      if (note.html) return sanitizeRichHtml(note.html);
+      let html = plainTextToHtml(note.text || "");
+      if (note.bold) html = `<b>${html}</b>`;
+      if (note.italic) html = `<i>${html}</i>`;
+      return sanitizeRichHtml(html);
+    }
+
+    function selectionIsInside(element) {
+      const selection = window.getSelection();
+      return Boolean(selection?.rangeCount && element.contains(selection.anchorNode));
+    }
+
+    function saveRichSelection(editor) {
+      const selection = window.getSelection();
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return;
+      editor._savedRange = selection.getRangeAt(0).cloneRange();
+    }
+
+    function restoreRichSelection(editor) {
+      if (!editor._savedRange) return;
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(editor._savedRange);
+    }
+
+    function normalizeRichChecklistItems(editor) {
+      editor.querySelectorAll(".rich-check-item").forEach(block => {
+        const token = block.querySelector(":scope > .rich-check-token");
+        if (!token) return;
+        token.contentEditable = "false";
+        token.textContent = block.classList.contains("checked") ? "☑" : "☐";
+        if (block.firstChild !== token) block.insertBefore(token, block.firstChild);
+      });
+    }
+
+    function updateNoteFromEditor(note, editor) {
+      normalizeRichChecklistItems(editor);
+      note.html = editor.innerHTML;
+      note.text = richTextToPlainText(editor);
+      saveRichSelection(editor);
+      save();
+    }
+
+    function applyRichNoteCommand(note, editor, command, value = null) {
+      editor.focus();
+      restoreRichSelection(editor);
+      document.execCommand(command, false, value);
+      saveRichSelection(editor);
+      updateNoteFromEditor(note, editor);
+    }
+
+    function selectionHasHighlight(editor) {
+      const selection = window.getSelection();
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return false;
+      let node = selection.anchorNode.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection.anchorNode;
+      while (node && node !== editor) {
+        if (node.style?.backgroundColor && node.style.backgroundColor !== "transparent") return true;
+        node = node.parentElement;
+      }
+      return false;
+    }
+
+    function flashHighlightButton(button) {
+      if (!button) return;
+      button.classList.remove("flash");
+      void button.offsetWidth;
+      button.classList.add("flash");
+    }
+
+    function applyHighlight(note, editor, color, button = null) {
+      editor.focus();
+      restoreRichSelection(editor);
+      const selection = window.getSelection();
+      const hadSelection = Boolean(selection?.rangeCount && !selection.isCollapsed);
+      document.execCommand("hiliteColor", false, color);
+      if (hadSelection && selection.rangeCount) {
+        const range = selection.getRangeAt(0).cloneRange();
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      document.execCommand("hiliteColor", false, "transparent");
+      note.highlightColor = color === "transparent" ? highlightColors[1].value : color;
+      flashHighlightButton(button);
+      saveRichSelection(editor);
+      updateNoteFromEditor(note, editor);
+    }
+
+    function ensureRichBlock(editor) {
+      let block = currentRichBlock(editor);
+      if (block && block !== editor) return block;
+      const wrapper = document.createElement("div");
+      while (editor.firstChild) wrapper.appendChild(editor.firstChild);
+      if (!wrapper.childNodes.length) wrapper.appendChild(document.createElement("br"));
+      editor.appendChild(wrapper);
+      placeCaretAtStart(wrapper);
+      return wrapper;
+    }
+
+    function toggleRichChecklistLine(note, editor) {
+      editor.focus();
+      restoreRichSelection(editor);
+      const block = ensureRichBlock(editor);
+      const existing = block.querySelector(":scope > .rich-check-token");
+      if (existing) {
+        existing.remove();
+        block.classList.remove("rich-check-item", "checked");
+      } else {
+        const token = document.createElement("span");
+        token.className = "rich-check-token";
+        token.contentEditable = "false";
+        token.textContent = "☐";
+        block.classList.add("rich-check-item");
+        block.insertBefore(token, block.firstChild);
+      }
+      saveRichSelection(editor);
+      updateNoteFromEditor(note, editor);
+    }
+
+    function toggleRichCheckToken(note, editor, token) {
+      const block = token.closest(".rich-check-item");
+      const checked = !block.classList.contains("checked");
+      block.classList.toggle("checked", checked);
+      token.textContent = checked ? "☑" : "☐";
+      updateNoteFromEditor(note, editor);
+    }
+
+    function currentRichBlock(editor) {
+      const selection = window.getSelection();
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return null;
+      let node = selection.anchorNode.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection.anchorNode;
+      while (node && node !== editor) {
+        if (["LI", "DIV", "P"].includes(node.nodeName)) return node;
+        node = node.parentElement;
+      }
+      return editor;
+    }
+
+    function placeCaretAtStart(element) {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      range.collapse(true);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    function autoCreateRichList(event, note, editor) {
+      if (event.key !== " " || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
+      if (!selectionIsInside(editor) || !window.getSelection().isCollapsed) return false;
+      const block = currentRichBlock(editor);
+      if (!block) return false;
+      const marker = (block.textContent || "").trim();
+      const ordered = marker.match(/^(\d+|[a-zA-Z])\.$/);
+      const unordered = marker === "-" || marker === "*";
+      if (!ordered && !unordered) return false;
+
+      event.preventDefault();
+      block.textContent = "";
+      placeCaretAtStart(block);
+      document.execCommand(ordered ? "insertOrderedList" : "insertUnorderedList");
+      if (ordered && /^[a-zA-Z]\.$/.test(marker)) {
+        const list = currentRichBlock(editor)?.closest("ol");
+        if (list) list.style.listStyleType = "lower-alpha";
+      }
+      updateNoteFromEditor(note, editor);
+      return true;
+    }
+
+    function handleRichEditorKeydown(event, note, editor) {
+      const key = event.key.toLowerCase();
+      const usesCommand = event.ctrlKey || event.metaKey;
+      if (autoCreateRichList(event, note, editor)) return true;
+      if (event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        document.execCommand(event.shiftKey ? "outdent" : "indent");
+        updateNoteFromEditor(note, editor);
+        return true;
+      }
+      if (usesCommand && event.shiftKey && key === "x") {
+        event.preventDefault();
+        applyRichNoteCommand(note, editor, "strikeThrough");
+        return true;
+      }
+      if (usesCommand && key === "b") {
+        event.preventDefault();
+        applyRichNoteCommand(note, editor, "bold");
+        return true;
+      }
+      if (usesCommand && key === "i") {
+        event.preventDefault();
+        applyRichNoteCommand(note, editor, "italic");
+        return true;
+      }
+      if (usesCommand && event.shiftKey && key === "8") {
+        event.preventDefault();
+        applyRichNoteCommand(note, editor, "insertUnorderedList");
+        return true;
+      }
+      if (usesCommand && event.shiftKey && key === "7") {
+        event.preventDefault();
+        applyRichNoteCommand(note, editor, "insertOrderedList");
+        return true;
+      }
+      if (usesCommand && event.shiftKey && key === "h") {
+        event.preventDefault();
+        applyHighlight(note, editor, selectionHasHighlight(editor) ? "transparent" : (note.highlightColor || highlightColors[1].value));
+        return true;
+      }
+      return false;
+    }
+
+    function removableIndentLength(text) {
+      if (text.startsWith("    ")) return 4;
+      if (text.startsWith("\t")) return 1;
+      return text.match(/^ {1,4}/)?.[0].length || 0;
+    }
+
+    function handleTabIndent(event, field, applyValue) {
+      if (event.key !== "Tab" || event.ctrlKey || event.metaKey || event.altKey) return false;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const indent = "    ";
+      const value = field.value;
+      const start = field.selectionStart ?? value.length;
+      const end = field.selectionEnd ?? start;
+
+      const commit = (nextValue, nextStart, nextEnd = nextStart) => {
+        field.value = nextValue;
+        field.setSelectionRange(nextStart, nextEnd);
+        applyValue(nextValue);
+      };
+
+      if (field.tagName === "TEXTAREA") {
+        const lineStart = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+        const adjustedEnd = end > start && value[end - 1] === "\n" ? end - 1 : end;
+        const nextBreak = value.indexOf("\n", adjustedEnd);
+        const lineEnd = nextBreak === -1 ? value.length : nextBreak;
+        const segment = value.slice(lineStart, lineEnd);
+        const lines = segment.split("\n");
+
+        if (event.shiftKey) {
+          let offset = 0;
+          let removedBeforeStart = 0;
+          let removedBeforeEnd = 0;
+          const nextSegment = lines.map(line => {
+            const remove = removableIndentLength(line);
+            const absoluteLineStart = lineStart + offset;
+            if (absoluteLineStart < start) removedBeforeStart += Math.min(remove, start - absoluteLineStart);
+            if (absoluteLineStart < end) removedBeforeEnd += Math.min(remove, end - absoluteLineStart);
+            offset += line.length + 1;
+            return line.slice(remove);
+          }).join("\n");
+          commit(
+            value.slice(0, lineStart) + nextSegment + value.slice(lineEnd),
+            start - removedBeforeStart,
+            end - removedBeforeEnd
+          );
+          return true;
+        }
+
+        const nextSegment = lines.map(line => indent + line).join("\n");
+        const added = lines.length * indent.length;
+        commit(
+          value.slice(0, lineStart) + nextSegment + value.slice(lineEnd),
+          start + indent.length,
+          end + added
+        );
+        return true;
+      }
+
+      if (event.shiftKey) {
+        const remove = removableIndentLength(value);
+        if (!remove) return true;
+        commit(value.slice(remove), Math.max(0, start - remove), Math.max(0, end - remove));
+        return true;
+      }
+
+      commit(indent + value, start + indent.length, end + indent.length);
+      return true;
     }
 
     function getSaveData() {
@@ -1083,11 +1600,24 @@
         note.bold = Boolean(note.bold);
         note.italic = Boolean(note.italic);
         note.checklist = Boolean(note.checklist);
+        note.highlightColor = note.highlightColor || highlightColors[1].value;
         note.width = noteWidth(note);
         note.height = noteHeight(note);
         if (note.checklist && !Array.isArray(note.items)) {
           note.items = (note.text || "").split("\n").filter(Boolean).map(text => ({ text, done: false }));
         }
+        if (note.checklist) {
+          const items = Array.isArray(note.items) && note.items.length ? note.items : [{ text: note.text || "", done: false }];
+          note.html = items.map(item => {
+            const checked = item.done ? " checked" : "";
+            const token = item.done ? "☑" : "☐";
+            return `<div class="rich-check-item${checked}"><span class="rich-check-token" contenteditable="false">${token}</span>${escapeHtml(item.text || "")}</div>`;
+          }).join("");
+          note.text = items.map(item => item.text || "").join("\n");
+          note.items = [];
+          note.checklist = false;
+        }
+        note.html = normalizeNoteHtml(note);
       });
       board.groups.forEach((group, index) => {
         group.color = group.color || groupColors[index % groupColors.length];
@@ -1102,6 +1632,8 @@
         flow.nodes.forEach(node => {
           node.id = node.id || uid("flow");
           node.align = node.align || "left";
+          node.width = flowNodeWidth(node);
+          node.height = flowNodeHeight(node);
         });
         flow.edges = Array.isArray(data.flow.edges) ? data.flow.edges : [];
         flow.edges.forEach(edge => {
@@ -1478,7 +2010,10 @@
       document.querySelectorAll(".note").forEach(node => node.remove());
       board.notes.forEach(note => {
         const div = document.createElement("article");
-        div.className = "note" + (board.selectedIds.has(note.id) ? " selected" : "");
+        const group = board.groups.find(item => item.id === note.groupId);
+        div.className = "note" +
+          (board.selectedIds.has(note.id) ? " selected" : "") +
+          (group ? " has-group" : "");
         div.dataset.id = note.id;
         div.style.left = `${note.x}px`;
         div.style.top = `${note.y}px`;
@@ -1488,7 +2023,6 @@
         div.style.height = `${note.height}px`;
         div.style.background = note.color;
         div.style.zIndex = note.z || 1;
-        const group = board.groups.find(item => item.id === note.groupId);
         if (group) {
           div.style.borderColor = group.color || groupColors[0];
           div.style.boxShadow = `0 10px 24px rgba(31, 37, 45, 0.15), inset 0 -4px 0 ${group.color || groupColors[0]}`;
@@ -1497,51 +2031,64 @@
         const tools = document.createElement("div");
         tools.className = "note-tools";
 
-        const bold = document.createElement("button");
-        bold.className = "note-tool" + (note.bold ? " active" : "");
-        bold.type = "button";
-        bold.title = "Bold";
-        bold.textContent = "B";
-        bold.addEventListener("pointerdown", event => event.stopPropagation());
-        bold.addEventListener("click", event => {
-          event.stopPropagation();
-          note.bold = !note.bold;
-          renderNotes();
-          save();
-        });
+        const richButtons = [];
+        const makeFormatButton = (label, title, command, className = "") => {
+          const button = document.createElement("button");
+          button.className = `note-tool ${className}`.trim();
+          button.type = "button";
+          button.title = title;
+          button.textContent = label;
+          button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            event.stopPropagation();
+          });
+          button.addEventListener("click", event => {
+            event.stopPropagation();
+            const editor = div.querySelector(".note-editor");
+            if (editor) applyRichNoteCommand(note, editor, command);
+          });
+          return button;
+        };
 
-        const italic = document.createElement("button");
-        italic.className = "note-tool" + (note.italic ? " active" : "");
-        italic.type = "button";
-        italic.title = "Italic";
-        italic.textContent = "I";
+        const bold = makeFormatButton("B", "Bold selected text (Ctrl+B / Cmd+B)", "bold");
+        const italic = makeFormatButton("I", "Italic selected text (Ctrl+I / Cmd+I)", "italic");
         italic.style.fontStyle = "italic";
-        italic.addEventListener("pointerdown", event => event.stopPropagation());
-        italic.addEventListener("click", event => {
-          event.stopPropagation();
-          note.italic = !note.italic;
-          renderNotes();
-          save();
+        const strike = makeFormatButton("S", "Strikethrough selected text (Ctrl+Shift+X / Cmd+Shift+X)", "strikeThrough", "strike");
+        richButtons.push(bold, italic, strike);
+
+        highlightColors.slice(1).forEach(color => {
+          const button = document.createElement("button");
+          button.className = "highlight-tool";
+          button.type = "button";
+          button.title = color.value === "transparent" ? "Clear highlight" : `Highlight ${color.name}`;
+          button.textContent = color.value === "transparent" ? "×" : "";
+          if (color.value !== "transparent") button.style.background = color.value;
+          button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            event.stopPropagation();
+          });
+          button.addEventListener("click", event => {
+            event.stopPropagation();
+            const editor = div.querySelector(".note-editor");
+            if (!editor) return;
+            applyHighlight(note, editor, color.value, button);
+          });
+          richButtons.push(button);
         });
 
         const checklist = document.createElement("button");
-        checklist.className = "note-tool" + (note.checklist ? " active" : "");
+        checklist.className = "note-tool";
         checklist.type = "button";
-        checklist.title = "Toggle checklist";
-        checklist.textContent = "List";
-        checklist.style.width = "42px";
-        checklist.addEventListener("pointerdown", event => event.stopPropagation());
+        checklist.title = "Toggle checklist on current line";
+        checklist.textContent = "☑";
+        checklist.addEventListener("pointerdown", event => {
+          event.preventDefault();
+          event.stopPropagation();
+        });
         checklist.addEventListener("click", event => {
           event.stopPropagation();
-          note.checklist = !note.checklist;
-          if (note.checklist) {
-            note.items = (note.text || "").split("\n").filter(Boolean).map(text => ({ text, done: false }));
-            if (!note.items.length) note.items = [{ text: "", done: false }];
-          } else {
-            note.text = (note.items || []).map(item => item.text).filter(Boolean).join("\n");
-          }
-          renderNotes();
-          save();
+          const editor = div.querySelector(".note-editor");
+          if (editor) toggleRichChecklistLine(note, editor);
         });
 
         const remove = document.createElement("button");
@@ -1556,8 +2103,9 @@
           removeNotes([note.id]);
         });
 
-        tools.append(bold, italic, checklist, remove);
+        tools.append(...richButtons, checklist);
         div.appendChild(tools);
+        div.appendChild(remove);
 
         if (note.checklist) {
           if (!Array.isArray(note.items) || !note.items.length) note.items = [{ text: "", done: false }];
@@ -1591,6 +2139,10 @@
               save();
             });
             text.addEventListener("keydown", event => {
+              if (handleTabIndent(event, text, value => {
+                item.text = value;
+                save();
+              })) return;
               if (event.key === "Enter") {
                 event.preventDefault();
                 note.items.splice(index + 1, 0, { text: "", done: false });
@@ -1621,17 +2173,34 @@
           list.appendChild(addItem);
           div.appendChild(list);
         } else {
-          const textarea = document.createElement("textarea");
-          textarea.value = note.text;
-          textarea.placeholder = "Write a task...";
-          textarea.style.fontWeight = note.bold ? "800" : "650";
-          textarea.style.fontStyle = note.italic ? "italic" : "normal";
-          textarea.addEventListener("input", () => {
-            note.text = textarea.value;
-            save();
+          const editor = document.createElement("div");
+          editor.className = "note-editor";
+          editor.contentEditable = "true";
+          editor.spellcheck = true;
+          editor.dataset.placeholder = "Write a task...";
+          editor.innerHTML = normalizeNoteHtml(note);
+          editor.addEventListener("input", () => updateNoteFromEditor(note, editor));
+          editor.addEventListener("keydown", event => handleRichEditorKeydown(event, note, editor));
+          editor.addEventListener("keyup", () => saveRichSelection(editor));
+          editor.addEventListener("mouseup", () => saveRichSelection(editor));
+          editor.addEventListener("focus", () => saveRichSelection(editor));
+          editor.addEventListener("paste", event => {
+            event.preventDefault();
+            document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+            updateNoteFromEditor(note, editor);
           });
-          textarea.addEventListener("pointerdown", event => event.stopPropagation());
-          div.append(textarea);
+          editor.addEventListener("pointerdown", event => {
+            const token = event.target.closest(".rich-check-token");
+            if (token) {
+              event.preventDefault();
+              event.stopPropagation();
+              toggleRichCheckToken(note, editor, token);
+              return;
+            }
+            event.stopPropagation();
+            saveRichSelection(editor);
+          });
+          div.append(editor);
         }
 
         if (group) {
@@ -1670,7 +2239,10 @@
     }
 
     function nodeCenter(node) {
-      return { x: node.x + 110, y: node.y + 48 };
+      return {
+        x: node.x + flowNodeWidth(node) / 2,
+        y: node.y + flowNodeHeight(node) / 2
+      };
     }
 
     function edgePath(fromNode, toPoint) {
@@ -1685,12 +2257,28 @@
         if (node.id === excludeId) continue;
         const inside =
           point.x >= node.x &&
-          point.x <= node.x + 220 &&
+          point.x <= node.x + flowNodeWidth(node) &&
           point.y >= node.y &&
-          point.y <= node.y + 96;
+          point.y <= node.y + flowNodeHeight(node);
         if (inside) return node.id;
       }
       return null;
+    }
+
+    function updateFlowEdgePaths() {
+      flow.edges.forEach(edge => {
+        const fromNode = flow.nodes.find(node => node.id === edge.from);
+        const toNode = flow.nodes.find(node => node.id === edge.to);
+        const path = document.querySelector(`.flow-edge[data-id="${edge.id}"]`);
+        if (fromNode && toNode && path) {
+          path.setAttribute("d", edgePath(fromNode, nodeCenter(toNode)));
+        }
+      });
+      if (flow.connectFromId && flow.previewPoint) {
+        const fromNode = flow.nodes.find(node => node.id === flow.connectFromId);
+        const preview = document.querySelector(".flow-edge.preview");
+        if (fromNode && preview) preview.setAttribute("d", edgePath(fromNode, flow.previewPoint));
+      }
     }
 
     function renderFlow() {
@@ -1774,6 +2362,10 @@
         div.dataset.id = node.id;
         div.style.left = `${node.x}px`;
         div.style.top = `${node.y}px`;
+        node.width = flowNodeWidth(node);
+        node.height = flowNodeHeight(node);
+        div.style.width = `${node.width}px`;
+        div.style.height = `${node.height}px`;
         div.style.zIndex = node.z || 1;
 
         const textarea = document.createElement("textarea");
@@ -1783,6 +2375,10 @@
           node.text = textarea.value;
           save();
         });
+        textarea.addEventListener("keydown", event => handleTabIndent(event, textarea, value => {
+          node.text = value;
+          save();
+        }));
         textarea.addEventListener("pointerdown", event => {
           if (event.button === 1 || (event.button === 0 && flow.connectFromId)) {
             beginFlowNodeDrag(event, node.id);
@@ -1793,6 +2389,19 @@
         textarea.addEventListener("auxclick", event => event.preventDefault());
 
         div.append(textarea);
+        [
+          { edge: "left", className: "edge-left" },
+          { edge: "right", className: "edge-right" },
+          { edge: "bottom", className: "edge-bottom" },
+          { edge: "bottom-left", className: "corner-bottom-left" },
+          { edge: "bottom-right", className: "corner-bottom-right" }
+        ].forEach(handle => {
+          const resizeHandle = document.createElement("div");
+          resizeHandle.className = `flow-node-resize-handle ${handle.className}`;
+          resizeHandle.setAttribute("aria-hidden", "true");
+          resizeHandle.addEventListener("pointerdown", event => beginFlowNodeResize(event, node.id, handle.edge));
+          div.appendChild(resizeHandle);
+        });
         div.addEventListener("pointerdown", event => beginFlowNodeDrag(event, node.id));
         div.addEventListener("auxclick", event => event.preventDefault());
         world.appendChild(div);
@@ -1811,6 +2420,8 @@
         y,
         text,
         align: "left",
+        width: defaultFlowNodeWidth,
+        height: defaultFlowNodeHeight,
         z: board.nextZ++
       };
       flow.nodes.push(node);
@@ -1975,6 +2586,75 @@
       window.addEventListener("pointerup", up, { once: true });
     }
 
+    function beginFlowNodeResize(event, id, edge) {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const node = flow.nodes.find(item => item.id === id);
+      if (!node) return;
+      flow.selectedNodeId = id;
+      flow.selectedNodeIds = new Set([id]);
+      flow.selectedEdgeIds = new Set();
+      node.z = board.nextZ++;
+      document.querySelectorAll(".flow-node").forEach(nodeEl => {
+        nodeEl.classList.toggle("selected", nodeEl.dataset.id === id);
+        if (nodeEl.dataset.id === id) nodeEl.style.zIndex = node.z;
+      });
+      renderFlowLineTools();
+      renderFlowAlignTools();
+
+      const start = screenToWorld(event.clientX, event.clientY);
+      const original = {
+        x: node.x,
+        y: node.y,
+        width: flowNodeWidth(node),
+        height: flowNodeHeight(node)
+      };
+      board.mode = "resize-flow-node";
+      document.body.style.cursor = getComputedStyle(event.currentTarget).cursor;
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      const move = moveEvent => {
+        const now = screenToWorld(moveEvent.clientX, moveEvent.clientY);
+        const dx = now.x - start.x;
+        const dy = now.y - start.y;
+
+        if (edge.includes("left")) {
+          const nextWidth = Math.max(minFlowNodeWidth, original.width - dx);
+          node.width = nextWidth;
+          node.x = original.x + original.width - nextWidth;
+        }
+        if (edge.includes("right")) {
+          node.width = Math.max(minFlowNodeWidth, original.width + dx);
+        }
+        if (edge.includes("bottom")) {
+          node.height = Math.max(minFlowNodeHeight, original.height + dy);
+        }
+
+        const nodeEl = document.querySelector(`.flow-node[data-id="${node.id}"]`);
+        if (nodeEl) {
+          nodeEl.style.left = `${node.x}px`;
+          nodeEl.style.top = `${node.y}px`;
+          nodeEl.style.width = `${node.width}px`;
+          nodeEl.style.height = `${node.height}px`;
+          nodeEl.style.zIndex = node.z || 1;
+        }
+        updateFlowEdgePaths();
+      };
+
+      const up = () => {
+        board.mode = null;
+        document.body.style.cursor = "";
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        render();
+        save();
+      };
+
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up, { once: true });
+    }
+
     function syncSelectionStyles() {
       document.querySelectorAll(".note").forEach(node => {
         node.classList.toggle("selected", board.selectedIds.has(node.dataset.id));
@@ -2039,7 +2719,9 @@
         y,
         color,
         text,
+        html: plainTextToHtml(text),
         groupId,
+        highlightColor: highlightColors[1].value,
         bold: false,
         italic: false,
         checklist: false,
@@ -2054,7 +2736,7 @@
       render();
       save();
       requestAnimationFrame(() => {
-        const field = document.querySelector(`[data-id="${note.id}"] textarea, [data-id="${note.id}"] .check-item input[type="text"]`);
+        const field = document.querySelector(`[data-id="${note.id}"] .note-editor, [data-id="${note.id}"] textarea, [data-id="${note.id}"] .check-item input[type="text"]`);
         field?.focus();
       });
     }
@@ -2539,7 +3221,7 @@
 
     document.getElementById("addFlowNode").addEventListener("click", () => {
       const center = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
-      createFlowNode(center.x - 110, center.y - 48);
+      createFlowNode(center.x - defaultFlowNodeWidth / 2, center.y - defaultFlowNodeHeight / 2);
     });
     planningTab.addEventListener("click", () => setActiveMode("board"));
     flowTab.addEventListener("click", () => setActiveMode("flow"));
@@ -2615,7 +3297,7 @@
       if (event.target.closest(".toolbar") || event.target.closest(".note") || event.target.closest(".flow-node") || event.target.closest(".modal")) return;
       const point = screenToWorld(event.clientX, event.clientY);
       if (activeMode === "flow") {
-        createFlowNode(point.x - 110, point.y - 48);
+        createFlowNode(point.x - defaultFlowNodeWidth / 2, point.y - defaultFlowNodeHeight / 2);
         return;
       }
       createNote(point.x - 105, point.y - 84);
@@ -2629,7 +3311,7 @@
     });
 
     app.addEventListener("wheel", event => {
-      if (event.target.closest(".note textarea, .note .checklist")) return;
+      if (event.target.closest(".note textarea, .note .checklist, .note .note-editor")) return;
       event.preventDefault();
       zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.08 : 0.92);
     }, { passive: false });
@@ -2645,7 +3327,7 @@
         if (isRedo) redo();
         return;
       }
-      if (event.target.matches("textarea, input")) return;
+      if (event.target.matches("textarea, input") || event.target.closest("[contenteditable='true']")) return;
       if (event.key === "Delete" || event.key === "Backspace") {
         if (activeMode === "flow") {
           if (!removeSelectedFlowEdges()) removeSelectedFlowNodes();
@@ -2665,7 +3347,7 @@
       if (event.key.toLowerCase() === "n") {
         const center = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
         if (activeMode === "flow") {
-          createFlowNode(center.x - 110, center.y - 48);
+          createFlowNode(center.x - defaultFlowNodeWidth / 2, center.y - defaultFlowNodeHeight / 2);
           return;
         }
         createNote(center.x - 105, center.y - 84);
