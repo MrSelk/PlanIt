@@ -73,12 +73,35 @@
       align-items: center;
       gap: 8px;
       padding: 8px;
-      max-width: calc(100vw - 32px);
+      max-width: calc(100vw - 132px);
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overscroll-behavior-x: contain;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(226, 232, 240, 0.28) transparent;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
       box-shadow: var(--shadow);
       backdrop-filter: blur(12px);
+    }
+
+    .toolbar > * {
+      flex: 0 0 auto;
+    }
+
+    .toolbar::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .toolbar::-webkit-scrollbar-thumb {
+      background: rgba(226, 232, 240, 0.24);
+      border-radius: 999px;
+    }
+
+    .toolbar::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     .toolbar button,
@@ -94,6 +117,7 @@
       color: var(--ink);
       border: 1px solid rgba(226, 232, 240, 0.12);
       box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset;
+      white-space: nowrap;
     }
 
     .toolbar button:hover {
@@ -162,6 +186,78 @@
 
     .tool-hidden {
       display: none !important;
+    }
+
+    .more-button {
+      font-size: 22px;
+      line-height: 1;
+      padding: 0 10px;
+    }
+
+    .more-button.active {
+      background: #3a4350;
+      border-color: rgba(147, 197, 253, 0.55);
+    }
+
+    .more-menu {
+      position: fixed;
+      z-index: 30;
+      min-width: 184px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel-solid);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      animation: moreMenuIn 120ms ease;
+    }
+
+    .more-menu[hidden] {
+      display: none;
+    }
+
+    @keyframes moreMenuIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .more-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      height: 38px;
+      padding: 0 12px;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .more-menu-item:hover,
+    .more-menu-item:focus-visible {
+      background: #303743;
+      outline: none;
+    }
+
+    .more-menu-icon {
+      display: inline-flex;
+      justify-content: center;
+      width: 18px;
+      font-size: 15px;
+      color: var(--muted);
+    }
+
+    .more-menu-sep {
+      height: 1px;
+      margin: 4px 8px;
+      background: rgba(226, 232, 240, 0.12);
     }
 
     .divider {
@@ -344,7 +440,6 @@
       transition: transform 120ms ease, outline-color 120ms ease, box-shadow 120ms ease;
     }
 
-    .flow-node textarea,
     .flow-editor {
       width: 100%;
       height: 100%;
@@ -357,7 +452,7 @@
       color: var(--ink);
       font-size: 16px;
       line-height: 1.35;
-      font-weight: 700;
+      font-weight: 550;
       user-select: text;
       overflow: auto;
       overscroll-behavior: contain;
@@ -365,6 +460,8 @@
 
     .flow-editor {
       white-space: pre-wrap;
+      overflow-wrap: break-word;
+      word-break: break-word;
       cursor: text;
     }
 
@@ -459,9 +556,7 @@
       cursor: nwse-resize;
     }
 
-    .flow-node.align-center textarea,
     .flow-node.align-center .flow-editor,
-    .flow-node.align-full textarea,
     .flow-node.align-full .flow-editor {
       text-align: center;
     }
@@ -472,7 +567,6 @@
       justify-content: center;
     }
 
-    .flow-node.align-full textarea,
     .flow-node.align-full .flow-editor {
       flex: 1 1 auto;
     }
@@ -650,7 +744,6 @@
       box-shadow: 0 16px 34px rgba(31, 37, 45, 0.22);
     }
 
-    .note textarea,
     .note-editor {
       position: relative;
       z-index: 1;
@@ -664,15 +757,14 @@
       color: #1f2937;
       line-height: 1.32;
       font-size: 17px;
-      font-weight: 650;
+      font-weight: 550;
       user-select: text;
       height: 100%;
       overflow: auto;
       overscroll-behavior: contain;
     }
 
-    .note.has-group .note-editor,
-    .note.has-group .checklist {
+    .note.has-group .note-editor {
       height: calc(100% - 30px);
       max-height: calc(100% - 30px);
       min-height: 0;
@@ -680,6 +772,8 @@
 
     .note-editor {
       white-space: pre-wrap;
+      overflow-wrap: break-word;
+      word-break: break-word;
       cursor: text;
     }
 
@@ -724,18 +818,6 @@
 
     .rich-check-item.checked {
       color: rgba(31, 41, 55, 0.72);
-    }
-
-    .checklist {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-      min-height: 106px;
-      max-height: 100%;
-      overflow: auto;
-      overscroll-behavior: contain;
     }
 
     .note-resize-handle {
@@ -784,43 +866,6 @@
     .note-resize-handle.corner-bottom-right {
       right: -4px;
       cursor: nwse-resize;
-    }
-
-    .check-item {
-      display: grid;
-      grid-template-columns: 18px 1fr;
-      gap: 7px;
-      align-items: center;
-    }
-
-    .check-item input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      accent-color: #2563eb;
-    }
-
-    .check-item input[type="text"] {
-      min-width: 0;
-      border: 0;
-      border-bottom: 1px solid rgba(31, 41, 55, 0.22);
-      background: transparent;
-      color: #1f2937;
-      outline: none;
-      font-size: 15px;
-      font-weight: 650;
-    }
-
-    .check-add {
-      align-self: flex-start;
-      margin-top: 2px;
-      height: 24px;
-      padding: 0 8px;
-      border-radius: 5px;
-      background: rgba(255, 255, 255, 0.48);
-      border: 1px solid rgba(31, 37, 45, 0.14);
-      color: #1f2937;
-      font-size: 12px;
-      font-weight: 800;
     }
 
     .note-group-tag {
@@ -1106,14 +1151,49 @@
       border-color: #2563eb;
     }
 
-    @media (max-width: 720px) {
-      .toolbar {
-        flex-wrap: wrap;
-        right: 16px;
-      }
-
+    @media (max-width: 860px) {
       .hint {
         display: none;
+      }
+
+      .toolbar {
+        top: 12px;
+        left: 12px;
+        gap: 6px;
+        padding: 6px;
+        max-width: calc(100vw - 104px);
+      }
+
+      .toolbar button,
+      .zoom-pill {
+        min-width: 34px;
+        height: 34px;
+      }
+
+      .toolbar .primary {
+        padding: 0 10px;
+      }
+
+      .zoom-pill {
+        width: 52px;
+        font-size: 12px;
+      }
+
+      .divider {
+        height: 24px;
+      }
+
+      .history-controls {
+        top: 12px;
+        right: 12px;
+        padding: 5px;
+        gap: 5px;
+      }
+
+      .history-controls button {
+        width: 30px;
+        height: 30px;
+        font-size: 16px;
       }
     }
   </style>
@@ -1136,14 +1216,24 @@
       <button id="zoomOut" title="Zoom out">-</button>
       <div id="zoomReadout" class="zoom-pill" aria-live="polite">100%</div>
       <button id="zoomIn" title="Zoom in">+</button>
-      <button id="resetView" title="Reset view">Reset</button>
-      <button id="exportData" title="Download a backup of this board">Backup</button>
-      <button id="importDataButton" title="Restore a board backup">Restore</button>
+      <button id="moreMenuButton" class="more-button" title="More options" aria-haspopup="true" aria-expanded="false" aria-label="More options">&#8943;</button>
     </section>
     <section class="history-controls" aria-label="History">
       <button id="undoAction" title="Undo (Ctrl+Z / Cmd+Z)" aria-label="Undo">&larr;</button>
       <button id="redoAction" title="Redo (Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z)" aria-label="Redo">&rarr;</button>
     </section>
+    <div id="moreMenu" class="more-menu" role="menu" aria-labelledby="moreMenuButton" hidden>
+      <button id="resetView" class="more-menu-item" type="button" role="menuitem" title="Reset view">
+        <span class="more-menu-icon" aria-hidden="true">&#8635;</span>Reset view
+      </button>
+      <div class="more-menu-sep" aria-hidden="true"></div>
+      <button id="exportData" class="more-menu-item" type="button" role="menuitem" title="Download a backup of this board">
+        <span class="more-menu-icon" aria-hidden="true">&#8681;</span>Backup&#8230;
+      </button>
+      <button id="importDataButton" class="more-menu-item" type="button" role="menuitem" title="Restore a board backup">
+        <span class="more-menu-icon" aria-hidden="true">&#8679;</span>Restore&#8230;
+      </button>
+    </div>
     <input id="importData" type="file" accept="application/json,.json" hidden>
 
     <div id="viewport" class="viewport">
@@ -1224,7 +1314,6 @@
     const flow = {
       nodes: [],
       edges: [],
-      selectedNodeId: null,
       selectedNodeIds: new Set(),
       selectedEdgeIds: new Set(),
       connectFromId: null,
@@ -1247,11 +1336,13 @@
     const minFlowNodeWidth = 150;
     const minFlowNodeHeight = 76;
     const historyLimit = 80;
+    const historyCoalesceWindow = 700;
     let undoStack = [];
     let redoStack = [];
     let lastSavedSnapshot = null;
     let lastHistoryKey = "";
     let isRestoringHistory = false;
+    let historyCoalesceUntil = 0;
 
     function noteWidth(note) {
       return Math.max(minNoteWidth, Number(note.width) || defaultNoteWidth);
@@ -1336,19 +1427,11 @@
       return clean.innerHTML;
     }
 
-    function normalizeNoteHtml(note) {
-      if (note.html) return sanitizeRichHtml(note.html);
-      let html = plainTextToHtml(note.text || "");
-      if (note.bold) html = `<b>${html}</b>`;
-      if (note.italic) html = `<i>${html}</i>`;
-      return sanitizeRichHtml(html);
-    }
-
-    function normalizeFlowHtml(node) {
-      if (node.html) return sanitizeRichHtml(node.html);
-      let html = plainTextToHtml(node.text || "");
-      if (node.bold) html = `<b>${html}</b>`;
-      if (node.italic) html = `<i>${html}</i>`;
+    function normalizeRichHtml(item) {
+      if (item.html) return sanitizeRichHtml(item.html);
+      let html = plainTextToHtml(item.text || "");
+      if (item.bold) html = `<b>${html}</b>`;
+      if (item.italic) html = `<i>${html}</i>`;
       return sanitizeRichHtml(html);
     }
 
@@ -1380,20 +1463,47 @@
       });
     }
 
-    function updateNoteFromEditor(note, editor) {
-      normalizeRichChecklistItems(editor);
-      note.html = editor.innerHTML;
-      note.text = richTextToPlainText(editor);
+    function commitEditorEdit(item, editor, { checklist = false, coalesce = false } = {}) {
+      if (checklist) normalizeRichChecklistItems(editor);
+      item.html = editor.innerHTML;
+      item.text = richTextToPlainText(editor);
       saveRichSelection(editor);
-      save();
+      save({ coalesce });
+    }
+
+    function applyEditorCommand(item, editor, command, value, checklist) {
+      editor.focus();
+      restoreRichSelection(editor);
+      document.execCommand(command, false, value ?? null);
+      saveRichSelection(editor);
+      commitEditorEdit(item, editor, { checklist });
+    }
+
+    function applyEditorHighlight(item, editor, color, checklist, button = null) {
+      editor.focus();
+      restoreRichSelection(editor);
+      const selection = window.getSelection();
+      const hadSelection = Boolean(selection?.rangeCount && !selection.isCollapsed);
+      document.execCommand("hiliteColor", false, color);
+      if (hadSelection && selection.rangeCount) {
+        const range = selection.getRangeAt(0).cloneRange();
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      document.execCommand("hiliteColor", false, "transparent");
+      item.highlightColor = color === "transparent" ? highlightColors[1].value : color;
+      flashHighlightButton(button);
+      saveRichSelection(editor);
+      commitEditorEdit(item, editor, { checklist });
+    }
+
+    function updateNoteFromEditor(note, editor, coalesce = false) {
+      commitEditorEdit(note, editor, { checklist: true, coalesce });
     }
 
     function applyRichNoteCommand(note, editor, command, value = null) {
-      editor.focus();
-      restoreRichSelection(editor);
-      document.execCommand(command, false, value);
-      saveRichSelection(editor);
-      updateNoteFromEditor(note, editor);
+      applyEditorCommand(note, editor, command, value, true);
     }
 
     function selectionHasHighlight(editor) {
@@ -1415,56 +1525,19 @@
     }
 
     function applyHighlight(note, editor, color, button = null) {
-      editor.focus();
-      restoreRichSelection(editor);
-      const selection = window.getSelection();
-      const hadSelection = Boolean(selection?.rangeCount && !selection.isCollapsed);
-      document.execCommand("hiliteColor", false, color);
-      if (hadSelection && selection.rangeCount) {
-        const range = selection.getRangeAt(0).cloneRange();
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-      document.execCommand("hiliteColor", false, "transparent");
-      note.highlightColor = color === "transparent" ? highlightColors[1].value : color;
-      flashHighlightButton(button);
-      saveRichSelection(editor);
-      updateNoteFromEditor(note, editor);
+      applyEditorHighlight(note, editor, color, true, button);
     }
 
-    function updateFlowNodeFromEditor(node, editor) {
-      node.html = editor.innerHTML;
-      node.text = richTextToPlainText(editor);
-      saveRichSelection(editor);
-      save();
+    function updateFlowNodeFromEditor(node, editor, coalesce = false) {
+      commitEditorEdit(node, editor, { coalesce });
     }
 
     function applyRichFlowCommand(node, editor, command, value = null) {
-      editor.focus();
-      restoreRichSelection(editor);
-      document.execCommand(command, false, value);
-      saveRichSelection(editor);
-      updateFlowNodeFromEditor(node, editor);
+      applyEditorCommand(node, editor, command, value, false);
     }
 
     function applyFlowHighlight(node, editor, color, button = null) {
-      editor.focus();
-      restoreRichSelection(editor);
-      const selection = window.getSelection();
-      const hadSelection = Boolean(selection?.rangeCount && !selection.isCollapsed);
-      document.execCommand("hiliteColor", false, color);
-      if (hadSelection && selection.rangeCount) {
-        const range = selection.getRangeAt(0).cloneRange();
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-      document.execCommand("hiliteColor", false, "transparent");
-      node.highlightColor = color === "transparent" ? highlightColors[1].value : color;
-      flashHighlightButton(button);
-      saveRichSelection(editor);
-      updateFlowNodeFromEditor(node, editor);
+      applyEditorHighlight(node, editor, color, false, button);
     }
 
     function ensureRichBlock(editor) {
@@ -1625,77 +1698,6 @@
       return false;
     }
 
-    function removableIndentLength(text) {
-      if (text.startsWith("    ")) return 4;
-      if (text.startsWith("\t")) return 1;
-      return text.match(/^ {1,4}/)?.[0].length || 0;
-    }
-
-    function handleTabIndent(event, field, applyValue) {
-      if (event.key !== "Tab" || event.ctrlKey || event.metaKey || event.altKey) return false;
-      event.preventDefault();
-      event.stopPropagation();
-
-      const indent = "    ";
-      const value = field.value;
-      const start = field.selectionStart ?? value.length;
-      const end = field.selectionEnd ?? start;
-
-      const commit = (nextValue, nextStart, nextEnd = nextStart) => {
-        field.value = nextValue;
-        field.setSelectionRange(nextStart, nextEnd);
-        applyValue(nextValue);
-      };
-
-      if (field.tagName === "TEXTAREA") {
-        const lineStart = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
-        const adjustedEnd = end > start && value[end - 1] === "\n" ? end - 1 : end;
-        const nextBreak = value.indexOf("\n", adjustedEnd);
-        const lineEnd = nextBreak === -1 ? value.length : nextBreak;
-        const segment = value.slice(lineStart, lineEnd);
-        const lines = segment.split("\n");
-
-        if (event.shiftKey) {
-          let offset = 0;
-          let removedBeforeStart = 0;
-          let removedBeforeEnd = 0;
-          const nextSegment = lines.map(line => {
-            const remove = removableIndentLength(line);
-            const absoluteLineStart = lineStart + offset;
-            if (absoluteLineStart < start) removedBeforeStart += Math.min(remove, start - absoluteLineStart);
-            if (absoluteLineStart < end) removedBeforeEnd += Math.min(remove, end - absoluteLineStart);
-            offset += line.length + 1;
-            return line.slice(remove);
-          }).join("\n");
-          commit(
-            value.slice(0, lineStart) + nextSegment + value.slice(lineEnd),
-            start - removedBeforeStart,
-            end - removedBeforeEnd
-          );
-          return true;
-        }
-
-        const nextSegment = lines.map(line => indent + line).join("\n");
-        const added = lines.length * indent.length;
-        commit(
-          value.slice(0, lineStart) + nextSegment + value.slice(lineEnd),
-          start + indent.length,
-          end + added
-        );
-        return true;
-      }
-
-      if (event.shiftKey) {
-        const remove = removableIndentLength(value);
-        if (!remove) return true;
-        commit(value.slice(remove), Math.max(0, start - remove), Math.max(0, end - remove));
-        return true;
-      }
-
-      commit(indent + value, start + indent.length, end + indent.length);
-      return true;
-    }
-
     function getSaveData() {
       return {
         notes: board.notes,
@@ -1758,7 +1760,7 @@
           note.items = [];
           note.checklist = false;
         }
-        note.html = normalizeNoteHtml(note);
+        note.html = normalizeRichHtml(note);
       });
       board.groups.forEach((group, index) => {
         group.color = group.color || groupColors[index % groupColors.length];
@@ -1774,7 +1776,7 @@
           node.id = node.id || uid("flow");
           node.align = node.align || "left";
           node.highlightColor = node.highlightColor || highlightColors[1].value;
-          node.html = normalizeFlowHtml(node);
+          node.html = normalizeRichHtml(node);
           node.width = flowNodeWidth(node);
           node.height = flowNodeHeight(node);
         });
@@ -1792,7 +1794,6 @@
       activeMode = data.activeMode === "flow" ? "flow" : "board";
       board.selectedIds = new Set();
       board.selectedGroupId = null;
-      flow.selectedNodeId = null;
       flow.selectedNodeIds = new Set();
       flow.selectedEdgeIds = new Set();
       flow.connectFromId = null;
@@ -1809,14 +1810,23 @@
       board.nextZ = Math.max(data.nextZ || 1, highestNoteZ + 1, highestFlowZ + 1);
     }
 
-    function save() {
+    function save(options = {}) {
+      const coalesce = options.coalesce === true;
+      const now = Date.now();
       const current = cloneData(getSaveData());
       const currentHistoryKey = getHistoryKey(current);
-      if (!isRestoringHistory && lastSavedSnapshot && currentHistoryKey !== lastHistoryKey) {
-        undoStack.push(cloneData(lastSavedSnapshot));
-        if (undoStack.length > historyLimit) undoStack.shift();
-        redoStack = [];
+      const changed = currentHistoryKey !== lastHistoryKey;
+      if (!isRestoringHistory && lastSavedSnapshot && changed) {
+        // While a text-editing burst is active, keep a single pre-burst undo
+        // entry instead of one per keystroke.
+        const withinBurst = coalesce && now < historyCoalesceUntil;
+        if (!withinBurst) {
+          undoStack.push(cloneData(lastSavedSnapshot));
+          if (undoStack.length > historyLimit) undoStack.shift();
+          redoStack = [];
+        }
       }
+      historyCoalesceUntil = coalesce && changed ? now + historyCoalesceWindow : 0;
       localStorage.setItem(storageKey, JSON.stringify(current));
       lastSavedSnapshot = cloneData(current);
       lastHistoryKey = currentHistoryKey;
@@ -2149,6 +2159,24 @@
       });
     }
 
+    function makeRichFormatButton(div, editorSelector, applyCommand, label, title, command, className = "") {
+      const button = document.createElement("button");
+      button.className = `note-tool ${className}`.trim();
+      button.type = "button";
+      button.title = title;
+      button.textContent = label;
+      button.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      button.addEventListener("click", event => {
+        event.stopPropagation();
+        const editor = div.querySelector(editorSelector);
+        if (editor) applyCommand(editor, command);
+      });
+      return button;
+    }
+
     function renderNotes() {
       document.querySelectorAll(".note").forEach(node => node.remove());
       board.notes.forEach(note => {
@@ -2175,23 +2203,8 @@
         tools.className = "note-tools";
 
         const richButtons = [];
-        const makeFormatButton = (label, title, command, className = "") => {
-          const button = document.createElement("button");
-          button.className = `note-tool ${className}`.trim();
-          button.type = "button";
-          button.title = title;
-          button.textContent = label;
-          button.addEventListener("pointerdown", event => {
-            event.preventDefault();
-            event.stopPropagation();
-          });
-          button.addEventListener("click", event => {
-            event.stopPropagation();
-            const editor = div.querySelector(".note-editor");
-            if (editor) applyRichNoteCommand(note, editor, command);
-          });
-          return button;
-        };
+        const makeFormatButton = (label, title, command, className = "") =>
+          makeRichFormatButton(div, ".note-editor", (editor, cmd) => applyRichNoteCommand(note, editor, cmd), label, title, command, className);
 
         const bold = makeFormatButton("B", "Bold selected text (Ctrl+B / Cmd+B)", "bold");
         const italic = makeFormatButton("I", "Italic selected text (Ctrl+I / Cmd+I)", "italic");
@@ -2250,79 +2263,14 @@
         div.appendChild(tools);
         div.appendChild(remove);
 
-        if (note.checklist) {
-          if (!Array.isArray(note.items) || !note.items.length) note.items = [{ text: "", done: false }];
-          const list = document.createElement("div");
-          list.className = "checklist";
-          if (note.bold) list.style.fontWeight = "800";
-          if (note.italic) list.style.fontStyle = "italic";
-
-          note.items.forEach((item, index) => {
-            const row = document.createElement("label");
-            row.className = "check-item";
-
-            const done = document.createElement("input");
-            done.type = "checkbox";
-            done.checked = Boolean(item.done);
-            done.addEventListener("pointerdown", event => event.stopPropagation());
-            done.addEventListener("change", () => {
-              item.done = done.checked;
-              save();
-            });
-
-            const text = document.createElement("input");
-            text.type = "text";
-            text.value = item.text || "";
-            text.placeholder = "Checklist item";
-            text.style.fontWeight = note.bold ? "800" : "650";
-            text.style.fontStyle = note.italic ? "italic" : "normal";
-            text.addEventListener("pointerdown", event => event.stopPropagation());
-            text.addEventListener("input", () => {
-              item.text = text.value;
-              save();
-            });
-            text.addEventListener("keydown", event => {
-              if (handleTabIndent(event, text, value => {
-                item.text = value;
-                save();
-              })) return;
-              if (event.key === "Enter") {
-                event.preventDefault();
-                note.items.splice(index + 1, 0, { text: "", done: false });
-                renderNotes();
-                requestAnimationFrame(() => {
-                  const inputs = document.querySelectorAll(`[data-id="${note.id}"] .check-item input[type="text"]`);
-                  inputs[index + 1]?.focus();
-                });
-                save();
-              }
-            });
-
-            row.append(done, text);
-            list.appendChild(row);
-          });
-
-          const addItem = document.createElement("button");
-          addItem.className = "check-add";
-          addItem.type = "button";
-          addItem.textContent = "+ Item";
-          addItem.addEventListener("pointerdown", event => event.stopPropagation());
-          addItem.addEventListener("click", event => {
-            event.stopPropagation();
-            note.items.push({ text: "", done: false });
-            renderNotes();
-            save();
-          });
-          list.appendChild(addItem);
-          div.appendChild(list);
-        } else {
+        {
           const editor = document.createElement("div");
           editor.className = "note-editor";
           editor.contentEditable = "true";
           editor.spellcheck = true;
           editor.dataset.placeholder = "Write a task...";
-          editor.innerHTML = normalizeNoteHtml(note);
-          editor.addEventListener("input", () => updateNoteFromEditor(note, editor));
+          editor.innerHTML = normalizeRichHtml(note);
+          editor.addEventListener("input", () => updateNoteFromEditor(note, editor, true));
           editor.addEventListener("keydown", event => handleRichEditorKeydown(event, note, editor));
           editor.addEventListener("keyup", () => saveRichSelection(editor));
           editor.addEventListener("mouseup", () => saveRichSelection(editor));
@@ -2473,7 +2421,6 @@
           } else {
             flow.selectedEdgeIds = new Set([edge.id]);
           }
-          flow.selectedNodeId = null;
           flow.selectedNodeIds = new Set();
           flow.connectFromId = null;
           flow.connectTargetId = null;
@@ -2514,23 +2461,8 @@
         const tools = document.createElement("div");
         tools.className = "flow-format-tools";
 
-        const makeFlowFormatButton = (label, title, command, className = "") => {
-          const button = document.createElement("button");
-          button.className = `note-tool ${className}`.trim();
-          button.type = "button";
-          button.title = title;
-          button.textContent = label;
-          button.addEventListener("pointerdown", event => {
-            event.preventDefault();
-            event.stopPropagation();
-          });
-          button.addEventListener("click", event => {
-            event.stopPropagation();
-            const editor = div.querySelector(".flow-editor");
-            if (editor) applyRichFlowCommand(node, editor, command);
-          });
-          return button;
-        };
+        const makeFlowFormatButton = (label, title, command, className = "") =>
+          makeRichFormatButton(div, ".flow-editor", (editor, cmd) => applyRichFlowCommand(node, editor, cmd), label, title, command, className);
 
         const bold = makeFlowFormatButton("B", "Bold selected text (Ctrl+B / Cmd+B)", "bold");
         const italic = makeFlowFormatButton("I", "Italic selected text (Ctrl+I / Cmd+I)", "italic");
@@ -2563,8 +2495,8 @@
         editor.contentEditable = "true";
         editor.spellcheck = true;
         editor.dataset.placeholder = "Flow step...";
-        editor.innerHTML = normalizeFlowHtml(node);
-        editor.addEventListener("input", () => updateFlowNodeFromEditor(node, editor));
+        editor.innerHTML = normalizeRichHtml(node);
+        editor.addEventListener("input", () => updateFlowNodeFromEditor(node, editor, true));
         editor.addEventListener("keydown", event => handleFlowEditorKeydown(event, node, editor));
         editor.addEventListener("keyup", () => saveRichSelection(editor));
         editor.addEventListener("mouseup", () => saveRichSelection(editor));
@@ -2623,7 +2555,6 @@
         z: board.nextZ++
       };
       flow.nodes.push(node);
-      flow.selectedNodeId = node.id;
       flow.selectedNodeIds = new Set([node.id]);
       flow.selectedEdgeIds = new Set();
       flow.connectFromId = null;
@@ -2640,7 +2571,6 @@
       flow.nodes = flow.nodes.filter(node => node.id !== id);
       flow.edges = flow.edges.filter(edge => edge.from !== id && edge.to !== id);
       flow.selectedEdgeIds = new Set([...flow.selectedEdgeIds].filter(edgeId => flow.edges.some(edge => edge.id === edgeId)));
-      if (flow.selectedNodeId === id) flow.selectedNodeId = null;
       flow.selectedNodeIds.delete(id);
       if (flow.connectFromId === id) flow.connectFromId = null;
       if (flow.connectTargetId === id) flow.connectTargetId = null;
@@ -2654,7 +2584,6 @@
       const ids = new Set(flow.selectedNodeIds);
       flow.nodes = flow.nodes.filter(node => !ids.has(node.id));
       flow.edges = flow.edges.filter(edge => !ids.has(edge.from) && !ids.has(edge.to));
-      flow.selectedNodeId = null;
       flow.selectedNodeIds = new Set();
       flow.selectedEdgeIds = new Set([...flow.selectedEdgeIds].filter(edgeId => flow.edges.some(edge => edge.id === edgeId)));
       if (ids.has(flow.connectFromId)) flow.connectFromId = null;
@@ -2685,7 +2614,6 @@
       flow.connectFromId = null;
       flow.connectTargetId = null;
       flow.previewPoint = null;
-      flow.selectedNodeId = to;
       flow.selectedNodeIds = new Set([to]);
       render();
       save();
@@ -2702,7 +2630,6 @@
         flow.connectFromId = id;
         flow.previewPoint = nodeCenter(node);
         flow.connectTargetId = null;
-        flow.selectedNodeId = id;
         flow.selectedNodeIds = new Set([id]);
         flow.selectedEdgeIds = new Set();
         render();
@@ -2727,12 +2654,8 @@
         } else {
           flow.selectedNodeIds.add(id);
         }
-        flow.selectedNodeId = id;
       } else if (!flow.selectedNodeIds.has(id)) {
         flow.selectedNodeIds = new Set([id]);
-        flow.selectedNodeId = id;
-      } else {
-        flow.selectedNodeId = id;
       }
       flow.selectedEdgeIds = new Set();
       const selectedNodes = flow.nodes.filter(item => flow.selectedNodeIds.has(item.id));
@@ -2769,7 +2692,7 @@
             nodeEl.style.zIndex = item.z || 1;
           }
         });
-        renderFlow();
+        updateFlowEdgePaths();
       };
 
       const up = () => {
@@ -2790,7 +2713,6 @@
       event.stopPropagation();
       const node = flow.nodes.find(item => item.id === id);
       if (!node) return;
-      flow.selectedNodeId = id;
       flow.selectedNodeIds = new Set([id]);
       flow.selectedEdgeIds = new Set();
       node.z = board.nextZ++;
@@ -2901,7 +2823,6 @@
         : "Drag the board to pan. Use the mouse wheel or trackpad to zoom. Shift-drag to select several notes, then create a group.";
       board.selectedIds = new Set();
       board.selectedGroupId = null;
-      flow.selectedNodeId = null;
       flow.selectedNodeIds = new Set();
       flow.selectedEdgeIds = new Set();
       flow.connectFromId = null;
@@ -2934,7 +2855,7 @@
       render();
       save();
       requestAnimationFrame(() => {
-        const field = document.querySelector(`[data-id="${note.id}"] .note-editor, [data-id="${note.id}"] textarea, [data-id="${note.id}"] .check-item input[type="text"]`);
+        const field = document.querySelector(`[data-id="${note.id}"] .note-editor`);
         field?.focus();
       });
     }
@@ -3454,6 +3375,52 @@
     undoAction.addEventListener("click", undo);
     redoAction.addEventListener("click", redo);
 
+    const moreMenuButton = document.getElementById("moreMenuButton");
+    const moreMenu = document.getElementById("moreMenu");
+
+    function positionMoreMenu() {
+      const rect = moreMenuButton.getBoundingClientRect();
+      moreMenu.style.top = `${rect.bottom + 8}px`;
+      const left = Math.min(rect.left, window.innerWidth - moreMenu.offsetWidth - 12);
+      moreMenu.style.left = `${Math.max(12, left)}px`;
+    }
+
+    function closeMoreMenu() {
+      if (moreMenu.hidden) return;
+      moreMenu.hidden = true;
+      moreMenuButton.classList.remove("active");
+      moreMenuButton.setAttribute("aria-expanded", "false");
+    }
+
+    function openMoreMenu() {
+      moreMenu.hidden = false;
+      moreMenuButton.classList.add("active");
+      moreMenuButton.setAttribute("aria-expanded", "true");
+      positionMoreMenu();
+    }
+
+    moreMenuButton.addEventListener("click", event => {
+      event.stopPropagation();
+      if (moreMenu.hidden) openMoreMenu();
+      else closeMoreMenu();
+    });
+
+    moreMenu.addEventListener("click", event => {
+      if (event.target.closest(".more-menu-item")) closeMoreMenu();
+    });
+
+    document.addEventListener("pointerdown", event => {
+      if (moreMenu.hidden) return;
+      if (event.target.closest("#moreMenu, #moreMenuButton")) return;
+      closeMoreMenu();
+    });
+
+    window.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeMoreMenu();
+    });
+
+    window.addEventListener("resize", closeMoreMenu);
+
     document.getElementById("cancelGroup").addEventListener("click", () => {
       board.editingGroupId = null;
       groupModal.classList.remove("open");
@@ -3470,7 +3437,6 @@
     viewport.addEventListener("pointerdown", event => {
       if (event.target !== viewport && event.target !== world) return;
       if (activeMode === "flow") {
-        flow.selectedNodeId = null;
         flow.selectedNodeIds = new Set();
         flow.selectedEdgeIds = new Set();
         flow.connectFromId = null;
@@ -3504,12 +3470,18 @@
     app.addEventListener("pointermove", event => {
       if (activeMode !== "flow" || !flow.connectFromId) return;
       flow.previewPoint = screenToWorld(event.clientX, event.clientY);
-      flow.connectTargetId = findFlowNodeAt(flow.previewPoint, flow.connectFromId);
-      renderFlow();
+      const nextTarget = findFlowNodeAt(flow.previewPoint, flow.connectFromId);
+      if (nextTarget !== flow.connectTargetId) {
+        flow.connectTargetId = nextTarget;
+        document.querySelectorAll(".flow-node").forEach(nodeEl => {
+          nodeEl.classList.toggle("connect-target", nodeEl.dataset.id === nextTarget);
+        });
+      }
+      updateFlowEdgePaths();
     });
 
     app.addEventListener("wheel", event => {
-      if (event.target.closest(".note textarea, .note .checklist, .note .note-editor, .flow-editor")) return;
+      if (event.target.closest(".note .note-editor, .flow-editor, .toolbar, .history-controls, .more-menu")) return;
       event.preventDefault();
       zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.08 : 0.92);
     }, { passive: false });
