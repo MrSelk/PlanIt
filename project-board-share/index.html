@@ -320,6 +320,11 @@
       user-select: none;
       isolation: isolate;
       overflow: hidden;
+      transition: padding 140ms ease;
+    }
+
+    .flow-node:focus-within {
+      padding-top: 45px;
     }
 
     .flow-node.selected,
@@ -338,11 +343,13 @@
       transition: transform 120ms ease, outline-color 120ms ease, box-shadow 120ms ease;
     }
 
-    .flow-node textarea {
+    .flow-node textarea,
+    .flow-editor {
       width: 100%;
       height: 100%;
       min-height: 0;
       border: 0;
+      padding: 0;
       resize: none;
       outline: none;
       background: transparent;
@@ -351,6 +358,61 @@
       line-height: 1.35;
       font-weight: 700;
       user-select: text;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+
+    .flow-editor {
+      white-space: pre-wrap;
+      cursor: text;
+    }
+
+    .flow-editor:empty::before {
+      content: attr(data-placeholder);
+      color: rgba(226, 232, 240, 0.52);
+    }
+
+    .flow-format-tools {
+      position: absolute;
+      top: 8px;
+      left: 9px;
+      right: 9px;
+      z-index: 5;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-3px);
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .flow-node:focus-within .flow-format-tools {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .flow-format-tools .note-tool {
+      width: 22px;
+      height: 23px;
+      background: rgba(226, 232, 240, 0.18);
+      border-color: rgba(226, 232, 240, 0.2);
+      color: var(--ink);
+    }
+
+    .flow-format-tools .highlight-tool {
+      width: 18px;
+      height: 23px;
+      background: rgba(226, 232, 240, 0.2);
+      border-color: rgba(226, 232, 240, 0.22);
+      color: var(--ink);
+    }
+
+    .flow-format-tools .note-tool:hover,
+    .flow-format-tools .highlight-tool:hover {
+      background: rgba(226, 232, 240, 0.34);
     }
 
     .flow-node-resize-handle {
@@ -397,7 +459,9 @@
     }
 
     .flow-node.align-center textarea,
-    .flow-node.align-full textarea {
+    .flow-node.align-center .flow-editor,
+    .flow-node.align-full textarea,
+    .flow-node.align-full .flow-editor {
       text-align: center;
     }
 
@@ -407,7 +471,8 @@
       justify-content: center;
     }
 
-    .flow-node.align-full textarea {
+    .flow-node.align-full textarea,
+    .flow-node.align-full .flow-editor {
       flex: 1 1 auto;
     }
 
@@ -1278,6 +1343,14 @@
       return sanitizeRichHtml(html);
     }
 
+    function normalizeFlowHtml(node) {
+      if (node.html) return sanitizeRichHtml(node.html);
+      let html = plainTextToHtml(node.text || "");
+      if (node.bold) html = `<b>${html}</b>`;
+      if (node.italic) html = `<i>${html}</i>`;
+      return sanitizeRichHtml(html);
+    }
+
     function selectionIsInside(element) {
       const selection = window.getSelection();
       return Boolean(selection?.rangeCount && element.contains(selection.anchorNode));
@@ -1357,6 +1430,40 @@
       flashHighlightButton(button);
       saveRichSelection(editor);
       updateNoteFromEditor(note, editor);
+    }
+
+    function updateFlowNodeFromEditor(node, editor) {
+      node.html = editor.innerHTML;
+      node.text = richTextToPlainText(editor);
+      saveRichSelection(editor);
+      save();
+    }
+
+    function applyRichFlowCommand(node, editor, command, value = null) {
+      editor.focus();
+      restoreRichSelection(editor);
+      document.execCommand(command, false, value);
+      saveRichSelection(editor);
+      updateFlowNodeFromEditor(node, editor);
+    }
+
+    function applyFlowHighlight(node, editor, color, button = null) {
+      editor.focus();
+      restoreRichSelection(editor);
+      const selection = window.getSelection();
+      const hadSelection = Boolean(selection?.rangeCount && !selection.isCollapsed);
+      document.execCommand("hiliteColor", false, color);
+      if (hadSelection && selection.rangeCount) {
+        const range = selection.getRangeAt(0).cloneRange();
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      document.execCommand("hiliteColor", false, "transparent");
+      node.highlightColor = color === "transparent" ? highlightColors[1].value : color;
+      flashHighlightButton(button);
+      saveRichSelection(editor);
+      updateFlowNodeFromEditor(node, editor);
     }
 
     function ensureRichBlock(editor) {
@@ -1479,6 +1586,39 @@
       if (usesCommand && event.shiftKey && key === "h") {
         event.preventDefault();
         applyHighlight(note, editor, selectionHasHighlight(editor) ? "transparent" : (note.highlightColor || highlightColors[1].value));
+        return true;
+      }
+      return false;
+    }
+
+    function handleFlowEditorKeydown(event, node, editor) {
+      const key = event.key.toLowerCase();
+      const usesCommand = event.ctrlKey || event.metaKey;
+      if (event.key === "Tab" && !usesCommand && !event.altKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!event.shiftKey) document.execCommand("insertText", false, "    ");
+        updateFlowNodeFromEditor(node, editor);
+        return true;
+      }
+      if (usesCommand && event.shiftKey && key === "x") {
+        event.preventDefault();
+        applyRichFlowCommand(node, editor, "strikeThrough");
+        return true;
+      }
+      if (usesCommand && key === "b") {
+        event.preventDefault();
+        applyRichFlowCommand(node, editor, "bold");
+        return true;
+      }
+      if (usesCommand && key === "i") {
+        event.preventDefault();
+        applyRichFlowCommand(node, editor, "italic");
+        return true;
+      }
+      if (usesCommand && event.shiftKey && key === "h") {
+        event.preventDefault();
+        applyFlowHighlight(node, editor, selectionHasHighlight(editor) ? "transparent" : (node.highlightColor || highlightColors[1].value));
         return true;
       }
       return false;
@@ -1632,6 +1772,8 @@
         flow.nodes.forEach(node => {
           node.id = node.id || uid("flow");
           node.align = node.align || "left";
+          node.highlightColor = node.highlightColor || highlightColors[1].value;
+          node.html = normalizeFlowHtml(node);
           node.width = flowNodeWidth(node);
           node.height = flowNodeHeight(node);
         });
@@ -2368,27 +2510,80 @@
         div.style.height = `${node.height}px`;
         div.style.zIndex = node.z || 1;
 
-        const textarea = document.createElement("textarea");
-        textarea.value = node.text;
-        textarea.placeholder = "Flow step...";
-        textarea.addEventListener("input", () => {
-          node.text = textarea.value;
-          save();
+        const tools = document.createElement("div");
+        tools.className = "flow-format-tools";
+
+        const makeFlowFormatButton = (label, title, command, className = "") => {
+          const button = document.createElement("button");
+          button.className = `note-tool ${className}`.trim();
+          button.type = "button";
+          button.title = title;
+          button.textContent = label;
+          button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            event.stopPropagation();
+          });
+          button.addEventListener("click", event => {
+            event.stopPropagation();
+            const editor = div.querySelector(".flow-editor");
+            if (editor) applyRichFlowCommand(node, editor, command);
+          });
+          return button;
+        };
+
+        const bold = makeFlowFormatButton("B", "Bold selected text (Ctrl+B / Cmd+B)", "bold");
+        const italic = makeFlowFormatButton("I", "Italic selected text (Ctrl+I / Cmd+I)", "italic");
+        italic.style.fontStyle = "italic";
+        const strike = makeFlowFormatButton("S", "Strikethrough selected text (Ctrl+Shift+X / Cmd+Shift+X)", "strikeThrough", "strike");
+        tools.append(bold, italic, strike);
+
+        highlightColors.slice(1).forEach(color => {
+          const button = document.createElement("button");
+          button.className = "highlight-tool";
+          button.type = "button";
+          button.title = color.value === "transparent" ? "Clear highlight (Ctrl+Shift+H / Cmd+Shift+H)" : `Highlight ${color.name} (Ctrl+Shift+H / Cmd+Shift+H)`;
+          button.textContent = color.value === "transparent" ? "×" : "";
+          if (color.value !== "transparent") button.style.background = color.value;
+          button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            event.stopPropagation();
+          });
+          button.addEventListener("click", event => {
+            event.stopPropagation();
+            const editor = div.querySelector(".flow-editor");
+            if (!editor) return;
+            applyFlowHighlight(node, editor, color.value, button);
+          });
+          tools.appendChild(button);
         });
-        textarea.addEventListener("keydown", event => handleTabIndent(event, textarea, value => {
-          node.text = value;
-          save();
-        }));
-        textarea.addEventListener("pointerdown", event => {
+
+        const editor = document.createElement("div");
+        editor.className = "flow-editor";
+        editor.contentEditable = "true";
+        editor.spellcheck = true;
+        editor.dataset.placeholder = "Flow step...";
+        editor.innerHTML = normalizeFlowHtml(node);
+        editor.addEventListener("input", () => updateFlowNodeFromEditor(node, editor));
+        editor.addEventListener("keydown", event => handleFlowEditorKeydown(event, node, editor));
+        editor.addEventListener("keyup", () => saveRichSelection(editor));
+        editor.addEventListener("mouseup", () => saveRichSelection(editor));
+        editor.addEventListener("focus", () => saveRichSelection(editor));
+        editor.addEventListener("paste", event => {
+          event.preventDefault();
+          document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+          updateFlowNodeFromEditor(node, editor);
+        });
+        editor.addEventListener("pointerdown", event => {
           if (event.button === 1 || (event.button === 0 && flow.connectFromId)) {
             beginFlowNodeDrag(event, node.id);
             return;
           }
           event.stopPropagation();
+          saveRichSelection(editor);
         });
-        textarea.addEventListener("auxclick", event => event.preventDefault());
+        editor.addEventListener("auxclick", event => event.preventDefault());
 
-        div.append(textarea);
+        div.append(tools, editor);
         [
           { edge: "left", className: "edge-left" },
           { edge: "right", className: "edge-right" },
@@ -2419,6 +2614,8 @@
         x,
         y,
         text,
+        html: plainTextToHtml(text),
+        highlightColor: highlightColors[1].value,
         align: "left",
         width: defaultFlowNodeWidth,
         height: defaultFlowNodeHeight,
@@ -2434,7 +2631,7 @@
       render();
       save();
       requestAnimationFrame(() => {
-        document.querySelector(`.flow-node[data-id="${node.id}"] textarea`)?.focus();
+        document.querySelector(`.flow-node[data-id="${node.id}"] .flow-editor`)?.focus();
       });
     }
 
@@ -3311,7 +3508,7 @@
     });
 
     app.addEventListener("wheel", event => {
-      if (event.target.closest(".note textarea, .note .checklist, .note .note-editor")) return;
+      if (event.target.closest(".note textarea, .note .checklist, .note .note-editor, .flow-editor")) return;
       event.preventDefault();
       zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.08 : 0.92);
     }, { passive: false });
